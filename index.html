@@ -230,10 +230,11 @@
                     await this.createAIAvatar();
                     document.getElementById('rotateBtn').disabled = false;
                     document.getElementById('exportBtn').disabled = false;
-                } catch (error) { 
-                    console.error('Avatar generation error:', error); 
-                    alert('Error generating avatar.'); 
-                } finally { loading.classList.remove('show'); }
+               } catch (error) { 
+    // This is the line to change
+    console.error('Avatar generation error:', error); 
+    alert('Error generating avatar. Check console for details.'); 
+} 
             }
 
             // FIX: This function now sets up the scene AND the loaders
