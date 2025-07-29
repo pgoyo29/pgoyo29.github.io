@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 2 (Final)</title>
+    <title>AI Face Detection Avatar Generator - Step 2 (Working)</title>
     
     <!-- All scripts are correct and in the correct order -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -87,14 +87,9 @@
                 this.tfDetector = null; this.faceMesh = null; this.scene = null;
                 this.camera = null; this.renderer = null; this.avatar = null;
                 this.isRotating = false; this.isMorphing = false; this.clock = new THREE.Clock();
-                this.animationFrameId = null;
-                
-                // FIX: Add a property to hold our pre-configured loader
-                this.gltfLoader = null;
-
+                this.animationFrameId = null; this.gltfLoader = null;
                 this.initializeApp();
             }
-
             async initializeApp() {
                 try {
                     await this.loadTFModel();
@@ -106,8 +101,6 @@
                     document.getElementById('initStatus').classList.add('error');
                 }
             }
-            
-            // All methods up to init3DScene are correct and need no changes
             async loadTFModel() {
                 const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
                 const detectorConfig = { runtime: 'mediapipe', solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh', maxFaces: 1 };
@@ -219,7 +212,6 @@
                 this.drawFaceDetection();
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
-
             async generateAvatar() {
                 if (!this.faceMesh) return;
                 const loading = document.getElementById('avatarLoading');
@@ -230,14 +222,11 @@
                     await this.createAIAvatar();
                     document.getElementById('rotateBtn').disabled = false;
                     document.getElementById('exportBtn').disabled = false;
-               } catch (error) { 
-    // This is the line to change
-    console.error('Avatar generation error:', error); 
-    alert('Error generating avatar. Check console for details.'); 
-} 
+                } catch (error) { 
+                    console.error('Avatar generation error:', error); 
+                    alert('Error generating avatar. Check console for details.'); 
+                } finally { loading.classList.remove('show'); }
             }
-
-            // FIX: This function now sets up the scene AND the loaders
             init3DScene() {
                 const container = document.getElementById('avatarViewer');
                 container.innerHTML = '';
@@ -255,26 +244,36 @@
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
                 directionalLight.position.set(1, 1, 5);
                 this.scene.add(directionalLight);
-
-                // Setup loaders here, once
                 const ktx2Loader = new THREE.KTX2Loader()
                     .setTranscoderPath('https://threejs.org/examples/js/libs/basis/')
                     .detectSupport(this.renderer);
                 this.gltfLoader = new THREE.GLTFLoader();
                 this.gltfLoader.setKTX2Loader(ktx2Loader);
             }
-            
-            // FIX: This function is now much simpler, it just USES the loader
             async createAIAvatar() {
                 const modelUrl = 'https://threejs.org/examples/models/gltf/facecap.glb';
-
                 try {
-                    // Use the loader we already created in init3DScene
                     const gltf = await this.gltfLoader.loadAsync(modelUrl);
                     
-                    const headModel = gltf.scene.getObjectByName('mesh_2');
-                    if (!headModel) throw new Error("Could not find 'mesh_2' object in model.");
+                    // FOR DEBUGGING: Let's see what's actually in the model
+                    console.log("Loaded GLTF Scene:", gltf.scene);
+
+                    // FIX: Traverse the scene to find the first available mesh
+                    let headModel = null;
+                    gltf.scene.traverse(function (object) {
+                        if (object.isMesh) {
+                            if (!headModel) { // Grab the first mesh we find
+                                headModel = object;
+                            }
+                        }
+                    });
+
+                    if (!headModel) {
+                        throw new Error("Could not find any mesh inside the loaded GLTF model.");
+                    }
                     
+                    console.log("Found mesh:", headModel.name);
+
                     this.avatar = headModel;
                     this.avatar.scale.set(10, 10, 10);
                     this.avatar.position.set(0, -12, 0);
@@ -283,7 +282,7 @@
                     this.animate();
 
                 } catch (error) {
-                    console.error("Failed to load 3D model:", error);
+                    console.error("Failed to load or process 3D model:", error);
                     alert("Could not load the 3D head model.");
                 }
             }
@@ -302,7 +301,6 @@
             
             resetApp() {
                 if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
-                // No need to dispose gltfLoader as it's handled when the scene is rebuilt
                 if (this.tfDetector) this.tfDetector.dispose();
                 this.isModelLoaded = false; this.uploadedImage = null; this.showLandmarks = true;
                 this.tfDetector = null; this.faceMesh = null; this.scene = null; this.camera = null;
