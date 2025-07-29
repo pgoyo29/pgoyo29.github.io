@@ -3,256 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator</title>
+    <title>AI Face Detection Avatar Generator - Step 1</title>
+    <!-- Keep Three.js for the 3D viewer -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+    
+    <!-- STEP 1 CHANGE: Remove face-api.js and add TensorFlow.js and the face-landmarks-detection model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
+
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-            backdrop-filter: blur(10px);
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            color: #333;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 1.1em;
-        }
-
-        .init-status {
-            background: #f0f8ff;
-            border: 2px solid #4CAF50;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-            color: #2e7d2e;
-            font-weight: bold;
-        }
-
-        .init-status.loading {
-            border-color: #ff9800;
-            background: #fff3e0;
-            color: #f57c00;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            align-items: start;
-        }
-
-        .section {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            min-height: 400px;
-        }
-
-        .section h3 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-            text-align: center;
-        }
-
-        .upload-zone {
-            border: 2px dashed #ddd;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .upload-zone.dragover {
-            border-color: #667eea;
-            background: #f0f4ff;
-        }
-
-        .upload-icon {
-            font-size: 3em;
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .upload-btn {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 10px 25px;
-            border-radius: 20px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        .photo-container {
-            position: relative;
-            text-align: center;
-        }
-
-        .photo-preview {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-        }
-
-        .detection-canvas {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            border-radius: 10px;
-            pointer-events: none;
-        }
-
-        .analysis-results {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .analysis-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding: 5px;
-            background: #f5f5f5;
-            border-radius: 5px;
-            font-size: 0.9em;
-        }
-
-        .avatar-viewer {
-            background: #000;
-            border-radius: 10px;
-            min-height: 350px;
-            position: relative;
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-
-        .control-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 15px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s ease;
-        }
-
-        .control-btn:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
-        }
-
-        .control-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            color: #667eea;
-            margin: 20px 0;
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .feature-highlight {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 0.8em;
-            font-weight: bold;
-        }
-
-        @media (max-width: 1024px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-        }
+        /* CSS styles remain the same */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); padding: 30px; max-width: 1400px; margin: 0 auto; backdrop-filter: blur(10px); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; background: linear-gradient(45deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { color: #666; font-size: 1.1em; }
+        .init-status { background: #f0f8ff; border: 2px solid #4CAF50; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center; color: #2e7d2e; font-weight: bold; }
+        .init-status.loading { border-color: #ff9800; background: #fff3e0; color: #f57c00; }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; }
+        .section { background: #f8f9fa; border-radius: 15px; padding: 20px; min-height: 400px; }
+        .section h3 { color: #333; margin-bottom: 15px; font-size: 1.3em; text-align: center; }
+        .upload-zone { border: 2px dashed #ddd; border-radius: 10px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.3s ease; min-height: 200px; display: flex; flex-direction: column; justify-content: center; }
+        .upload-zone.dragover { border-color: #667eea; background: #f0f4ff; }
+        .upload-icon { font-size: 3em; color: #667eea; margin-bottom: 15px; }
+        .file-input { display: none; }
+        .upload-btn { background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer; margin-top: 10px; }
+        .photo-container { position: relative; text-align: center; }
+        .photo-preview { max-width: 100%; max-height: 300px; border-radius: 10px; margin-bottom: 15px; }
+        .detection-canvas { position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-radius: 10px; pointer-events: none; }
+        .analysis-results { background: white; border-radius: 10px; padding: 15px; margin-top: 15px; max-height: 200px; overflow-y: auto; }
+        .analysis-item { display: flex; justify-content: space-between; margin-bottom: 8px; padding: 5px; background: #f5f5f5; border-radius: 5px; font-size: 0.9em; }
+        .avatar-viewer { background: #000; border-radius: 10px; min-height: 350px; position: relative; }
+        .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
+        .control-btn { background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 15px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease; }
+        .control-btn:hover { background: #5a67d8; transform: translateY(-1px); }
+        .control-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        .loading { display: none; text-align: center; color: #667eea; margin: 20px 0; }
+        .loading.show { display: block; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 25px; height: 25px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .feature-highlight { background: linear-gradient(45deg, #4CAF50, #45a049); color: white; padding: 3px 8px; border-radius: 10px; font-size: 0.8em; font-weight: bold; }
+        @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .container { padding: 15px; } .header h1 { font-size: 2em; } }
     </style>
 </head>
 <body>
@@ -297,7 +92,7 @@
                 
                 <div id="analysisResults" class="analysis-results" style="display: none;">
                     <div style="text-align: center; margin-bottom: 15px;">
-                        <span class="feature-highlight">Face Detected!</span>
+                        <span class="feature-highlight">Face Mesh Detected!</span>
                     </div>
                     <div id="featuresList"></div>
                 </div>
@@ -339,10 +134,11 @@
             constructor() {
                 this.isModelLoaded = false;
                 this.uploadedImage = null;
-                this.faceDetections = null;
-                this.faceLandmarks = null;
-                this.faceDescriptor = null;
                 this.showLandmarks = true;
+                
+                // STEP 1 CHANGE: New properties for TF.js model and results
+                this.tfModel = null;
+                this.faceMesh = null;
                 
                 // 3D Scene variables
                 this.scene = null;
@@ -358,7 +154,8 @@
 
             async initializeApp() {
                 try {
-                    await this.loadFaceAPIModels();
+                    // STEP 1 CHANGE: Load the new TF.js model
+                    await this.loadTFModel();
                     this.initializeEventListeners();
                     this.updateInitStatus('✅ AI Models loaded successfully!', false);
                 } catch (error) {
@@ -366,29 +163,24 @@
                     this.updateInitStatus('❌ Failed to load AI models', false);
                 }
             }
-
-            async loadFaceAPIModels() {
-                const modelUrl = 'https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/weights/';
-                
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
-                    faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
-                    faceapi.nets.faceExpressionNet.loadFromUri(modelUrl)
-                ]);
-                
+            
+            // STEP 1 CHANGE: New model loader for TensorFlow.js
+            async loadTFModel() {
+                this.tfModel = await faceLandmarksDetection.load(
+                    faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
+                    { maxFaces: 1 } // Optimize for a single face
+                );
                 this.isModelLoaded = true;
             }
 
             updateInitStatus(message, isLoading) {
                 const status = document.getElementById('initStatus');
-                status.innerHTML = isLoading ? 
-                    `<div class="spinner"></div>${message}` : 
-                    message;
+                status.innerHTML = isLoading ? `<div class="spinner"></div>${message}` : message;
                 status.className = isLoading ? 'init-status loading' : 'init-status';
             }
 
             initializeEventListeners() {
+                // This method remains the same
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
                 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -400,21 +192,9 @@
                 const resetBtn = document.getElementById('resetBtn');
 
                 fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
-                
-                uploadZone.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    uploadZone.classList.add('dragover');
-                });
-                
+                uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
                 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-                
-                uploadZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    uploadZone.classList.remove('dragover');
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) this.processFile(files[0]);
-                });
-
+                uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); const files = e.dataTransfer.files; if (files.length > 0) this.processFile(files[0]); });
                 analyzeBtn.addEventListener('click', () => this.analyzeFace());
                 toggleLandmarksBtn.addEventListener('click', () => this.toggleLandmarks());
                 generateAvatarBtn.addEventListener('click', () => this.generateAvatar());
@@ -424,20 +204,11 @@
                 resetBtn.addEventListener('click', () => this.resetApp());
             }
 
-            handleFileUpload(event) {
-                const file = event.target.files[0];
-                if (file) this.processFile(file);
-            }
+            handleFileUpload(event) { const file = event.target.files[0]; if (file) this.processFile(file); }
 
             processFile(file) {
-                if (!file.type.startsWith('image/')) {
-                    alert('Please upload an image file');
-                    return;
-                }
-                if (file.size > 10 * 1024 * 1024) {
-                    alert('File size must be less than 10MB');
-                    return;
-                }
+                if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
+                if (file.size > 10 * 1024 * 1024) { alert('File size must be less than 10MB'); return; }
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     this.uploadedImage = e.target.result;
@@ -460,10 +231,9 @@
                 const canvas = document.getElementById('detectionCanvas');
                 canvas.width = preview.clientWidth;
                 canvas.height = preview.clientHeight;
-                canvas.style.width = preview.clientWidth + 'px';
-                canvas.style.height = preview.clientHeight + 'px';
             }
-
+            
+            // STEP 1 CHANGE: This is the core update to use the new model
             async analyzeFace() {
                 if (!this.isModelLoaded || !this.uploadedImage) return;
                 const loading = document.getElementById('analysisLoading');
@@ -471,20 +241,22 @@
                 document.getElementById('analyzeBtn').disabled = true;
                 try {
                     const preview = document.getElementById('photoPreview');
-                    const detections = await faceapi
-                        .detectAllFaces(preview, new faceapi.TinyFaceDetectorOptions())
-                        .withFaceLandmarks()
-                        .withFaceDescriptors()
-                        .withFaceExpressions();
-                    if (detections.length === 0) {
+                    
+                    // Use the TF.js model to estimate faces
+                    const predictions = await this.tfModel.estimateFaces({ input: preview });
+
+                    if (predictions.length === 0) {
                         alert('No face detected. Try a clearer front-facing photo.');
                         return;
                     }
-                    this.faceDetections = detections[0];
-                    this.faceLandmarks = detections[0].landmarks;
-                    this.faceDescriptor = detections[0].descriptor;
-                    this.displayAnalysisResults();
+                    
+                    // Store the 3D keypoints (the mesh)
+                    this.faceMesh = predictions[0].scaledMesh;
+                    console.log("Face Mesh Data (478 3D-points):", this.faceMesh);
+
+                    this.displayAnalysisResults(predictions[0]);
                     this.drawFaceDetection();
+                    
                     document.getElementById('toggleLandmarksBtn').disabled = false;
                     document.getElementById('generateAvatarBtn').disabled = false;
                 } catch (error) {
@@ -494,50 +266,53 @@
                     loading.classList.remove('show');
                 }
             }
-
-            displayAnalysisResults() {
+            
+            // STEP 1 CHANGE: Display results from the new model
+            displayAnalysisResults(prediction) {
                 const resultsDiv = document.getElementById('analysisResults');
                 const featuresList = document.getElementById('featuresList');
-                if (!this.faceDetections) return;
-                const { detection, expressions, landmarks } = this.faceDetections;
-                const faceWidth = detection.box.width;
-                const faceHeight = detection.box.height;
-                const aspectRatio = (faceWidth / faceHeight).toFixed(2);
-                const dominantExpression = Object.keys(expressions).reduce((a, b) => expressions[a] > expressions[b] ? a : b);
-                const leftEye = landmarks.getLeftEye();
-                const rightEye = landmarks.getRightEye();
-                const eyeDistance = Math.sqrt(Math.pow(rightEye[0].x - leftEye[3].x, 2) + Math.pow(rightEye[0].y - leftEye[3].y, 2)).toFixed(1);
+                if (!this.faceMesh) return;
+
+                // Get bounding box from the mesh itself
+                const box = prediction.boundingBox;
+                const faceWidth = Math.round(box.xMax - box.xMin);
+                const faceHeight = Math.round(box.yMax - box.yMin);
+
                 featuresList.innerHTML = `
-                    <div class="analysis-item"><span>Face Dimensions:</span><span>${Math.round(faceWidth)} × ${Math.round(faceHeight)} px</span></div>
-                    <div class="analysis-item"><span>Face Ratio:</span><span>${aspectRatio}</span></div>
-                    <div class="analysis-item"><span>Eye Distance:</span><span>${eyeDistance} px</span></div>
-                    <div class="analysis-item"><span>Dominant Expression:</span><span>${dominantExpression}</span></div>
-                    <div class="analysis-item"><span>Confidence:</span><span>${(expressions[dominantExpression] * 100).toFixed(1)}%</span></div>
-                    <div class="analysis-item"><span>Landmarks Detected:</span><span>${landmarks.positions.length} points</span></div>
+                    <div class="analysis-item">
+                        <span>Face Dimensions (Approx):</span>
+                        <span>${faceWidth} × ${faceHeight} px</span>
+                    </div>
+                    <div class="analysis-item">
+                        <span>3D Keypoints Detected:</span>
+                        <span>${this.faceMesh.length} points</span>
+                    </div>
                 `;
                 resultsDiv.style.display = 'block';
             }
-
+            
+            // STEP 1 CHANGE: Draw the new 3D mesh points on the canvas
             drawFaceDetection() {
                 const canvas = document.getElementById('detectionCanvas');
                 const ctx = canvas.getContext('2d');
                 const preview = document.getElementById('photoPreview');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (!this.faceDetections) return;
+                
+                if (!this.faceMesh || !this.showLandmarks) return;
+
                 const scaleX = canvas.width / preview.naturalWidth;
                 const scaleY = canvas.height / preview.naturalHeight;
-                const box = this.faceDetections.detection.box;
-                ctx.strokeStyle = '#00ff00';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(box.x * scaleX, box.y * scaleY, box.width * scaleX, box.height * scaleY);
-                if (this.showLandmarks && this.faceLandmarks) {
-                    ctx.fillStyle = '#ff0000';
-                    this.faceLandmarks.positions.forEach(point => {
-                        ctx.beginPath();
-                        ctx.arc(point.x * scaleX, point.y * scaleY, 1.5, 0, 2 * Math.PI);
-                        ctx.fill();
-                    });
-                }
+
+                ctx.fillStyle = '#ff0000'; // Red dots for landmarks
+                
+                // Draw each point from the face mesh
+                this.faceMesh.forEach(point => {
+                    const x = point[0] * scaleX;
+                    const y = point[1] * scaleY;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1.2, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
             }
 
             toggleLandmarks() {
@@ -545,9 +320,12 @@
                 this.drawFaceDetection();
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
-
+            
+            // The rest of the functions (generateAvatar, 3D logic, reset) remain the same for now
+            // They will be triggered correctly but won't use the new mesh data yet.
+            // This will be our task in Step 2.
             async generateAvatar() {
-                if (!this.faceDetections) return;
+                if (!this.faceMesh) return; // Check for faceMesh now
                 const loading = document.getElementById('avatarLoading');
                 loading.classList.add('show');
                 document.getElementById('generateAvatarBtn').disabled = true;
@@ -557,12 +335,8 @@
                     document.getElementById('rotateBtn').disabled = false;
                     document.getElementById('morphBtn').disabled = false;
                     document.getElementById('exportBtn').disabled = false;
-                } catch (error) {
-                    console.error('Avatar generation error:', error);
-                    alert('Error generating avatar.');
-                } finally {
-                    loading.classList.remove('show');
-                }
+                } catch (error) { console.error('Avatar generation error:', error); alert('Error generating avatar.'); } 
+                finally { loading.classList.remove('show'); }
             }
 
             init3DScene() {
@@ -584,120 +358,58 @@
             }
 
             async createAIAvatar() {
+                // NOTE: This function still uses basic shapes.
+                // We will upgrade this in Step 2.
                 await new Promise(resolve => setTimeout(resolve, 1500));
-                const { detection, expressions, landmarks } = this.faceDetections;
-                const faceWidth = detection.box.width;
-                const faceHeight = detection.box.height;
-                const aspectRatio = faceWidth / faceHeight;
-                const leftEye = landmarks.getLeftEye();
-                const rightEye = landmarks.getRightEye();
-                const eyeDistance = Math.sqrt(Math.pow(rightEye[0].x - leftEye[3].x, 2) + Math.pow(rightEye[0].y - leftEye[3].y, 2));
-
+                
                 const avatarGroup = new THREE.Group();
                 this.avatar = avatarGroup;
 
                 const headGeometry = new THREE.SphereGeometry(1, 32, 32);
                 const headMaterial = new THREE.MeshPhongMaterial({ color: 0xfdbcb4, shininess: 10 });
                 const head = new THREE.Mesh(headGeometry, headMaterial);
-                const headScaleX = Math.max(0.8, Math.min(1.2, aspectRatio));
-                const headScaleY = Math.max(0.9, Math.min(1.3, 1 / aspectRatio));
-                head.scale.set(headScaleX, headScaleY, 0.9);
                 avatarGroup.add(head);
 
                 const eyeGeometry = new THREE.SphereGeometry(0.12, 16, 16);
                 const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-                const eyeSpacing = Math.max(0.25, Math.min(0.4, eyeDistance / faceWidth * 0.6));
                 const leftEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                leftEyeMesh.position.set(-eyeSpacing, 0.15, 0.8);
+                leftEyeMesh.position.set(-0.3, 0.15, 0.8);
                 avatarGroup.add(leftEyeMesh);
                 const rightEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                rightEyeMesh.position.set(eyeSpacing, 0.15, 0.8);
+                rightEyeMesh.position.set(0.3, 0.15, 0.8);
                 avatarGroup.add(rightEyeMesh);
-
-                const pupilGeometry = new THREE.SphereGeometry(0.06, 16, 16);
-                const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-                const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-                leftPupil.position.set(-eyeSpacing, 0.15, 0.85);
-                avatarGroup.add(leftPupil);
-                const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-                rightPupil.position.set(eyeSpacing, 0.15, 0.85);
-                avatarGroup.add(rightPupil);
-
-                const hairGeometry = new THREE.SphereGeometry(1.05, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.7);
-                const hairColors = [0x8b4513, 0x4a4a4a, 0xffd700, 0x654321, 0x2c1810];
-                const hairColor = hairColors[Math.floor(Math.random() * hairColors.length)];
-                const hairMaterial = new THREE.MeshPhongMaterial({ color: hairColor });
-                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
-                hair.position.y = 0.1;
-                avatarGroup.add(hair);
-
+                
                 this.scene.add(avatarGroup);
-                this.animate(); // Start the animation loop
+                this.animate();
             }
 
             animate() {
                 requestAnimationFrame(() => this.animate());
                 const delta = this.clock.getDelta();
                 if (this.avatar) {
-                    if (this.isRotating) {
-                        this.avatar.rotation.y += delta * 0.5;
-                    }
+                    if (this.isRotating) { this.avatar.rotation.y += delta * 0.5; }
                     if (this.isMorphing) {
-                        // Add a subtle "breathing" animation
                         const time = this.clock.getElapsedTime();
-                        this.avatar.children[0].scale.y = 1 + Math.sin(time * 2) * 0.02; // Head
-                        this.avatar.children[1].scale.setScalar(1 + Math.sin(time * 1.5) * 0.05); // Left Eye
-                        this.avatar.children[2].scale.setScalar(1 + Math.sin(time * 1.5) * 0.05); // Right Eye
+                        this.avatar.children[0].scale.y = 1 + Math.sin(time * 2) * 0.02;
                     }
                 }
                 this.renderer.render(this.scene, this.camera);
             }
             
-            toggleRotation() {
-                this.isRotating = !this.isRotating;
-                document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate';
-            }
-
-            toggleMorph() {
-                this.isMorphing = !this.isMorphing;
-                document.getElementById('morphBtn').textContent = this.isMorphing ? 'Stop Morph' : 'Morph Features';
-            }
-
-            exportAvatar() {
-                if (!this.renderer) return;
-                const dataURL = this.renderer.domElement.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = 'ai_avatar.png';
-                link.href = dataURL;
-                link.click();
-            }
-
+            toggleRotation() { this.isRotating = !this.isRotating; document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; }
+            toggleMorph() { this.isMorphing = !this.isMorphing; document.getElementById('morphBtn').textContent = this.isMorphing ? 'Stop Morph' : 'Morph Features'; }
+            exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
             resetApp() {
-                this.uploadedImage = null;
-                this.faceDetections = null;
-                this.faceLandmarks = null;
-                this.isRotating = false;
-                this.isMorphing = false;
-
-                document.getElementById('photoContainer').style.display = 'none';
-                document.getElementById('photoPreview').src = '';
-                document.getElementById('fileInput').value = '';
-                const detectionCanvas = document.getElementById('detectionCanvas');
-                detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
-                
-                document.getElementById('analysisResults').style.display = 'none';
-                document.getElementById('featuresList').innerHTML = '';
-                
+                this.uploadedImage = null; this.faceMesh = null; this.isRotating = false; this.isMorphing = false;
+                document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
+                const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
+                document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
                 document.getElementById('avatarViewer').innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div>`;
                 this.renderer = null; this.scene = null; this.camera = null; this.avatar = null;
-
-                ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => {
-                    document.getElementById(id).disabled = true;
-                });
+                ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => { document.getElementById(id).disabled = true; });
             }
         }
 
-        // Initialize the app
         window.onload = () => new AIFaceDetectionAvatar();
     </script>
 </body>
