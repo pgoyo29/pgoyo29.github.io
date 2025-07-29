@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 2</title>
+    <title>AI Face Detection Avatar Generator - Step 2 (Fixed)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <!-- STEP 2 CHANGE: Add the GLTF Loader script -->
-    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
+    <!-- FIX: Use a compatible CDN version of the GLTFLoader -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     
     <!-- TensorFlow and MediaPipe scripts remain the same -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
@@ -95,8 +95,9 @@
                 this.renderer = null;
                 this.avatar = null;
                 this.isRotating = false;
-                this.isMorphing = false; // We will use this in a later step
+                this.isMorphing = false;
                 this.clock = new THREE.Clock();
+                this.animationFrameId = null;
 
                 this.initializeApp();
             }
@@ -130,7 +131,6 @@
                 status.className = isLoading ? 'init-status loading' : 'init-status';
             }
 
-            // The Event Listener logic remains the same
             initializeEventListeners() {
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
@@ -155,7 +155,6 @@
                 resetBtn.addEventListener('click', () => this.resetApp());
             }
 
-            // The file handling and analysis logic remains the same
             handleFileUpload(event) { const file = event.target.files[0]; if (file) this.processFile(file); }
             processFile(file) {
                 if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
@@ -240,7 +239,6 @@
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
             
-            // The generateAvatar function now triggers the new createAIAvatar
             async generateAvatar() {
                 if (!this.faceMesh) return;
                 const loading = document.getElementById('avatarLoading');
@@ -248,12 +246,13 @@
                 document.getElementById('generateAvatarBtn').disabled = true;
                 try {
                     this.init3DScene();
-                    await this.createAIAvatar(); // This now calls our new GLB loader function
+                    await this.createAIAvatar();
                     document.getElementById('rotateBtn').disabled = false;
-                    // Morph button remains disabled for now
-                    // document.getElementById('morphBtn').disabled = false;
                     document.getElementById('exportBtn').disabled = false;
-                } catch (error) { console.error('Avatar generation error:', error); alert('Error generating avatar.'); } 
+                } catch (error) { 
+                    console.error('Avatar generation error:', error); 
+                    alert('Error generating avatar.'); 
+                } 
                 finally { loading.classList.remove('show'); }
             }
 
@@ -262,13 +261,12 @@
                 container.innerHTML = '';
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x2a2a2a);
-                // Adjust camera for a better view of the head model
                 this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-                this.camera.position.set(0, 0, 25); // Move camera further back
+                this.camera.position.set(0, 0, 25);
                 this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
                 this.renderer.setSize(container.clientWidth, container.clientHeight);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
-                this.renderer.outputEncoding = THREE.sRGBEncoding; // Important for correct colors
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
                 container.appendChild(this.renderer.domElement);
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
                 this.scene.add(ambientLight);
@@ -277,25 +275,22 @@
                 this.scene.add(directionalLight);
             }
 
-            // STEP 2 CHANGE: This function is completely new
             async createAIAvatar() {
+                // The GLTFLoader constructor is now correctly found on the THREE object
                 const loader = new THREE.GLTFLoader();
                 const modelUrl = 'https://threejs.org/examples/models/gltf/facecap.glb';
 
                 try {
                     const gltf = await loader.loadAsync(modelUrl);
                     
-                    const headModel = gltf.scene.getObjectByName('Head'); // Get the head mesh by its name
+                    // This specific model has a hierarchy, the mesh we want is nested inside
+                    const headModel = gltf.scene.getObjectByName('mesh_2');
                     
                     if (!headModel) {
-                        console.error("Could not find 'Head' object in the loaded model. Using the first mesh found.");
-                        // Fallback to the first mesh if the named one isn't found
-                        this.avatar = gltf.scene.children[0].children[0];
-                    } else {
-                        this.avatar = headModel;
+                        throw new Error("Could not find 'mesh_2' object in the loaded model.");
                     }
+                    this.avatar = headModel;
 
-                    // Apply a basic skin-like material
                     const skinMaterial = new THREE.MeshStandardMaterial({
                         color: 0xfdbcb4,
                         roughness: 0.6,
@@ -303,9 +298,9 @@
                     });
                     this.avatar.material = skinMaterial;
 
-                    // Scale and position the model for a good view
+                    // This model is already well-scaled, so we can use a smaller factor
                     this.avatar.scale.set(10, 10, 10);
-                    this.avatar.position.set(0, -10, 0); // Center it
+                    this.avatar.position.set(0, -12, 0); // Adjust Y position
 
                     this.scene.add(this.avatar);
                     this.animate();
@@ -317,7 +312,7 @@
             }
 
             animate() {
-                requestAnimationFrame(() => this.animate());
+                this.animationFrameId = requestAnimationFrame(() => this.animate());
                 if (this.avatar && this.isRotating) {
                     this.avatar.rotation.y += this.clock.getDelta() * 0.5;
                 }
@@ -326,26 +321,25 @@
             
             toggleRotation() { this.isRotating = !this.isRotating; document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; }
             
-            // Morphing is not implemented yet
             toggleMorph() { alert("Feature not implemented yet!"); }
 
             exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
             
             resetApp() {
-                // This function is mostly the same, just ensure we stop the animation loop
-                if (this.renderer) {
-                    this.renderer.setAnimationLoop(null);
+                if (this.animationFrameId) {
+                    cancelAnimationFrame(this.animationFrameId);
                 }
-                this.uploadedImage = null; this.faceMesh = null; this.isRotating = false; this.isMorphing = false;
-                if(this.tfDetector) {
+                if (this.tfDetector) {
                     this.tfDetector.dispose();
-                    this.tfDetector = null;
                 }
+                this.isModelLoaded = false; this.uploadedImage = null; this.showLandmarks = true;
+                this.tfDetector = null; this.faceMesh = null; this.scene = null; this.camera = null;
+                this.renderer = null; this.avatar = null; this.isRotating = false; this.isMorphing = false;
+
                 document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
                 const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
                 document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
                 document.getElementById('avatarViewer').innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div>`;
-                this.renderer = null; this.scene = null; this.camera = null; this.avatar = null;
                 ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => { document.getElementById(id).disabled = true; });
                 this.updateInitStatus('Loading AI models...', true);
                 this.initializeApp();
