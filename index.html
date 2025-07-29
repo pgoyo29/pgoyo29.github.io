@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 1 (Fixed)</title>
+    <title>AI Face Detection Avatar Generator - Step 2</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <!-- Core TensorFlow.js scripts -->
+    <!-- STEP 2 CHANGE: Add the GLTF Loader script -->
+    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <!-- TensorFlow and MediaPipe scripts remain the same -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
-    
-    <!-- FIX: The mediapipe script must be loaded BEFORE the tensorflow model script -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
 
@@ -56,80 +57,27 @@
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🤖 AI Face Detection Avatar</h1>
-            <p>Advanced face analysis for realistic 3D avatar generation</p>
-        </div>
-
-        <div class="init-status loading" id="initStatus">
-            <div class="spinner"></div>
-            Loading AI models... Please wait
-        </div>
-
+        <!-- The HTML structure remains exactly the same -->
+        <div class="header"><h1>🤖 AI Face Detection Avatar</h1><p>Advanced face analysis for realistic 3D avatar generation</p></div>
+        <div class="init-status loading" id="initStatus"><div class="spinner"></div>Loading AI models... Please wait</div>
         <div class="main-content">
-            <!-- All other HTML remains exactly the same -->
-            <!-- Upload Section -->
             <div class="section">
                 <h3>📸 Upload Photo</h3>
-                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">📷</div>
-                    <div>Drop photo here or click</div>
-                    <div style="font-size: 0.9em; color: #999; margin-top: 10px;">
-                        Best results: Front-facing, good lighting
-                    </div>
-                    <button class="upload-btn">Choose Photo</button>
-                </div>
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"><div class="upload-icon">📷</div><div>Drop photo here or click</div><div style="font-size: 0.9em; color: #999; margin-top: 10px;">Best results: Front-facing, good lighting</div><button class="upload-btn">Choose Photo</button></div>
                 <input type="file" id="fileInput" class="file-input" accept="image/*">
-                
-                <div class="photo-container" id="photoContainer" style="display: none;">
-                    <img id="photoPreview" class="photo-preview" alt="Preview">
-                    <canvas id="detectionCanvas" class="detection-canvas"></canvas>
-                </div>
+                <div class="photo-container" id="photoContainer" style="display: none;"><img id="photoPreview" class="photo-preview" alt="Preview"><canvas id="detectionCanvas" class="detection-canvas"></canvas></div>
             </div>
-
-            <!-- Analysis Section -->
             <div class="section">
                 <h3>🔍 Face Analysis</h3>
-                <div class="loading" id="analysisLoading">
-                    <div class="spinner"></div>
-                    <div>Analyzing facial features...</div>
-                </div>
-                
-                <div id="analysisResults" class="analysis-results" style="display: none;">
-                    <div style="text-align: center; margin-bottom: 15px;">
-                        <span class="feature-highlight">Face Mesh Detected!</span>
-                    </div>
-                    <div id="featuresList"></div>
-                </div>
-
-                <div class="controls">
-                    <button class="control-btn" id="analyzeBtn" disabled>Analyze Face</button>
-                    <button class="control-btn" id="toggleLandmarksBtn" disabled>Toggle Landmarks</button>
-                    <button class="control-btn" id="generateAvatarBtn" disabled>Generate Avatar</button>
-                </div>
+                <div class="loading" id="analysisLoading"><div class="spinner"></div><div>Analyzing facial features...</div></div>
+                <div id="analysisResults" class="analysis-results" style="display: none;"><div style="text-align: center; margin-bottom: 15px;"><span class="feature-highlight">Face Mesh Detected!</span></div><div id="featuresList"></div></div>
+                <div class="controls"><button class="control-btn" id="analyzeBtn" disabled>Analyze Face</button><button class="control-btn" id="toggleLandmarksBtn" disabled>Toggle Landmarks</button><button class="control-btn" id="generateAvatarBtn" disabled>Generate Avatar</button></div>
             </div>
-
-            <!-- 3D Avatar Section -->
             <div class="section">
                 <h3>🎭 3D Avatar</h3>
-                <div class="loading" id="avatarLoading">
-                    <div class="spinner"></div>
-                    <div>Creating 3D avatar...</div>
-                </div>
-
-                <div class="avatar-viewer" id="avatarViewer">
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;">
-                        <div style="font-size: 3em; margin-bottom: 15px;">🎭</div>
-                        <div>AI-generated avatar will appear here</div>
-                    </div>
-                </div>
-
-                <div class="controls">
-                    <button class="control-btn" id="rotateBtn" disabled>Auto Rotate</button>
-                    <button class="control-btn" id="morphBtn" disabled>Morph Features</button>
-                    <button class="control-btn" id="exportBtn" disabled>Export</button>
-                    <button class="control-btn" id="resetBtn">Reset</button>
-                </div>
+                <div class="loading" id="avatarLoading"><div class="spinner"></div><div>Creating 3D avatar...</div></div>
+                <div class="avatar-viewer" id="avatarViewer"><div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div></div>
+                <div class="controls"><button class="control-btn" id="rotateBtn" disabled>Auto Rotate</button><button class="control-btn" id="morphBtn" disabled>Morph Features</button><button class="control-btn" id="exportBtn" disabled>Export</button><button class="control-btn" id="resetBtn">Reset</button></div>
             </div>
         </div>
     </div>
@@ -147,7 +95,7 @@
                 this.renderer = null;
                 this.avatar = null;
                 this.isRotating = false;
-                this.isMorphing = false;
+                this.isMorphing = false; // We will use this in a later step
                 this.clock = new THREE.Clock();
 
                 this.initializeApp();
@@ -182,8 +130,8 @@
                 status.className = isLoading ? 'init-status loading' : 'init-status';
             }
 
+            // The Event Listener logic remains the same
             initializeEventListeners() {
-                // This method is correct and does not need changes.
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
                 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -207,8 +155,8 @@
                 resetBtn.addEventListener('click', () => this.resetApp());
             }
 
+            // The file handling and analysis logic remains the same
             handleFileUpload(event) { const file = event.target.files[0]; if (file) this.processFile(file); }
-
             processFile(file) {
                 if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
                 if (file.size > 10 * 1024 * 1024) { alert('File size must be less than 10MB'); return; }
@@ -220,7 +168,6 @@
                 };
                 reader.readAsDataURL(file);
             }
-
             showPhotoPreview(imageSrc) {
                 const container = document.getElementById('photoContainer');
                 const preview = document.getElementById('photoPreview');
@@ -228,14 +175,12 @@
                 container.style.display = 'block';
                 preview.onload = () => this.setupDetectionCanvas();
             }
-
             setupDetectionCanvas() {
                 const preview = document.getElementById('photoPreview');
                 const canvas = document.getElementById('detectionCanvas');
                 canvas.width = preview.clientWidth;
                 canvas.height = preview.clientHeight;
             }
-            
             async analyzeFace() {
                 if (!this.isModelLoaded || !this.uploadedImage) return;
                 const loading = document.getElementById('analysisLoading');
@@ -244,20 +189,15 @@
                 try {
                     const preview = document.getElementById('photoPreview');
                     const predictions = await this.tfDetector.estimateFaces(preview);
-
                     if (predictions.length === 0) {
                         alert('No face detected. Try a clearer front-facing photo.');
                         document.getElementById('analyzeBtn').disabled = false;
                         loading.classList.remove('show');
                         return;
                     }
-                    
                     this.faceMesh = predictions[0].keypoints;
-                    console.log("Face Mesh Data (478 3D-points):", this.faceMesh);
-
                     this.displayAnalysisResults(predictions[0]);
                     this.drawFaceDetection();
-                    
                     document.getElementById('toggleLandmarksBtn').disabled = false;
                     document.getElementById('generateAvatarBtn').disabled = false;
                 } catch (error) {
@@ -267,7 +207,6 @@
                     loading.classList.remove('show');
                 }
             }
-            
             displayAnalysisResults(prediction) {
                 const resultsDiv = document.getElementById('analysisResults');
                 const featuresList = document.getElementById('featuresList');
@@ -275,12 +214,9 @@
                 const box = prediction.box;
                 const faceWidth = Math.round(box.width);
                 const faceHeight = Math.round(box.height);
-                featuresList.innerHTML = `
-                    <div class="analysis-item"><span>Face Dimensions (Approx):</span><span>${faceWidth} × ${faceHeight} px</span></div>
-                    <div class="analysis-item"><span>3D Keypoints Detected:</span><span>${this.faceMesh.length} points</span></div>`;
+                featuresList.innerHTML = `<div class="analysis-item"><span>Face Dimensions (Approx):</span><span>${faceWidth} × ${faceHeight} px</span></div><div class="analysis-item"><span>3D Keypoints Detected:</span><span>${this.faceMesh.length} points</span></div>`;
                 resultsDiv.style.display = 'block';
             }
-            
             drawFaceDetection() {
                 const canvas = document.getElementById('detectionCanvas');
                 const ctx = canvas.getContext('2d');
@@ -298,14 +234,13 @@
                     ctx.fill();
                 });
             }
-
             toggleLandmarks() {
                 this.showLandmarks = !this.showLandmarks;
                 this.drawFaceDetection();
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
             
-            // The rest of the code is unchanged and correct for this step.
+            // The generateAvatar function now triggers the new createAIAvatar
             async generateAvatar() {
                 if (!this.faceMesh) return;
                 const loading = document.getElementById('avatarLoading');
@@ -313,9 +248,10 @@
                 document.getElementById('generateAvatarBtn').disabled = true;
                 try {
                     this.init3DScene();
-                    await this.createAIAvatar();
+                    await this.createAIAvatar(); // This now calls our new GLB loader function
                     document.getElementById('rotateBtn').disabled = false;
-                    document.getElementById('morphBtn').disabled = false;
+                    // Morph button remains disabled for now
+                    // document.getElementById('morphBtn').disabled = false;
                     document.getElementById('exportBtn').disabled = false;
                 } catch (error) { console.error('Avatar generation error:', error); alert('Error generating avatar.'); } 
                 finally { loading.classList.remove('show'); }
@@ -326,57 +262,85 @@
                 container.innerHTML = '';
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x2a2a2a);
-                this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-                this.camera.position.z = 3;
+                // Adjust camera for a better view of the head model
+                this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+                this.camera.position.set(0, 0, 25); // Move camera further back
                 this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
                 this.renderer.setSize(container.clientWidth, container.clientHeight);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.outputEncoding = THREE.sRGBEncoding; // Important for correct colors
                 container.appendChild(this.renderer.domElement);
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
                 this.scene.add(ambientLight);
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                directionalLight.position.set(1, 1, 1);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(1, 1, 5);
                 this.scene.add(directionalLight);
             }
 
+            // STEP 2 CHANGE: This function is completely new
             async createAIAvatar() {
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                const avatarGroup = new THREE.Group();
-                this.avatar = avatarGroup;
-                const headGeometry = new THREE.SphereGeometry(1, 32, 32);
-                const headMaterial = new THREE.MeshPhongMaterial({ color: 0xfdbcb4, shininess: 10 });
-                const head = new THREE.Mesh(headGeometry, headMaterial);
-                avatarGroup.add(head);
-                const eyeGeometry = new THREE.SphereGeometry(0.12, 16, 16);
-                const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-                const leftEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                leftEyeMesh.position.set(-0.3, 0.15, 0.8);
-                avatarGroup.add(leftEyeMesh);
-                const rightEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                rightEyeMesh.position.set(0.3, 0.15, 0.8);
-                avatarGroup.add(rightEyeMesh);
-                this.scene.add(avatarGroup);
-                this.animate();
+                const loader = new THREE.GLTFLoader();
+                const modelUrl = 'https://threejs.org/examples/models/gltf/facecap.glb';
+
+                try {
+                    const gltf = await loader.loadAsync(modelUrl);
+                    
+                    const headModel = gltf.scene.getObjectByName('Head'); // Get the head mesh by its name
+                    
+                    if (!headModel) {
+                        console.error("Could not find 'Head' object in the loaded model. Using the first mesh found.");
+                        // Fallback to the first mesh if the named one isn't found
+                        this.avatar = gltf.scene.children[0].children[0];
+                    } else {
+                        this.avatar = headModel;
+                    }
+
+                    // Apply a basic skin-like material
+                    const skinMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xfdbcb4,
+                        roughness: 0.6,
+                        metalness: 0.2
+                    });
+                    this.avatar.material = skinMaterial;
+
+                    // Scale and position the model for a good view
+                    this.avatar.scale.set(10, 10, 10);
+                    this.avatar.position.set(0, -10, 0); // Center it
+
+                    this.scene.add(this.avatar);
+                    this.animate();
+
+                } catch (error) {
+                    console.error("Failed to load 3D model:", error);
+                    alert("Could not load the 3D head model. Please check the network connection and console.");
+                }
             }
 
             animate() {
                 requestAnimationFrame(() => this.animate());
-                const delta = this.clock.getDelta();
-                if (this.avatar) {
-                    if (this.isRotating) { this.avatar.rotation.y += delta * 0.5; }
-                    if (this.isMorphing) {
-                        const time = this.clock.getElapsedTime();
-                        this.avatar.children[0].scale.y = 1 + Math.sin(time * 2) * 0.02;
-                    }
+                if (this.avatar && this.isRotating) {
+                    this.avatar.rotation.y += this.clock.getDelta() * 0.5;
                 }
                 if (this.renderer) this.renderer.render(this.scene, this.camera);
             }
             
             toggleRotation() { this.isRotating = !this.isRotating; document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; }
-            toggleMorph() { this.isMorphing = !this.isMorphing; document.getElementById('morphBtn').textContent = this.isMorphing ? 'Stop Morph' : 'Morph Features'; }
+            
+            // Morphing is not implemented yet
+            toggleMorph() { alert("Feature not implemented yet!"); }
+
             exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
+            
             resetApp() {
+                // This function is mostly the same, just ensure we stop the animation loop
+                if (this.renderer) {
+                    this.renderer.setAnimationLoop(null);
+                }
                 this.uploadedImage = null; this.faceMesh = null; this.isRotating = false; this.isMorphing = false;
+                if(this.tfDetector) {
+                    this.tfDetector.dispose();
+                    this.tfDetector = null;
+                }
                 document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
                 const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
                 document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
