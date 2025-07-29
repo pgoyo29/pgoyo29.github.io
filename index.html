@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo to 3D Avatar</title>
+    <title>AI Face Detection Avatar Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -16,18 +18,16 @@
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 20px;
         }
 
         .container {
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-            max-width: 1200px;
-            width: 90%;
+            padding: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
             backdrop-filter: blur(10px);
         }
 
@@ -50,36 +50,66 @@
             font-size: 1.1em;
         }
 
+        .init-status {
+            background: #f0f8ff;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #2e7d2e;
+            font-weight: bold;
+        }
+
+        .init-status.loading {
+            border-color: #ff9800;
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
             align-items: start;
         }
 
-        .upload-section {
+        .section {
             background: #f8f9fa;
             border-radius: 15px;
-            padding: 30px;
-            text-align: center;
-            border: 2px dashed #ddd;
-            transition: all 0.3s ease;
+            padding: 20px;
+            min-height: 400px;
         }
 
-        .upload-section.dragover {
+        .section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            text-align: center;
+        }
+
+        .upload-zone {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .upload-zone.dragover {
             border-color: #667eea;
             background: #f0f4ff;
         }
 
-        .upload-zone {
-            cursor: pointer;
-            padding: 40px 20px;
-        }
-
         .upload-icon {
-            font-size: 4em;
+            font-size: 3em;
             color: #667eea;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .file-input {
@@ -90,58 +120,75 @@
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-size: 1.1em;
+            padding: 10px 25px;
+            border-radius: 20px;
             cursor: pointer;
-            transition: transform 0.3s ease;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
-        .upload-btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .preview-section {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 20px;
-            min-height: 400px;
-            display: flex;
-            flex-direction: column;
+        .photo-container {
+            position: relative;
+            text-align: center;
         }
 
         .photo-preview {
             max-width: 100%;
             max-height: 300px;
             border-radius: 10px;
-            margin-bottom: 20px;
-            object-fit: cover;
+            margin-bottom: 15px;
+        }
+
+        .detection-canvas {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .analysis-results {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .analysis-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 0.9em;
         }
 
         .avatar-viewer {
-            flex: 1;
             background: #000;
             border-radius: 10px;
+            min-height: 350px;
             position: relative;
-            min-height: 400px;
         }
 
         .controls {
-            margin-top: 20px;
             display: flex;
             gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
+            margin-top: 15px;
         }
 
         .control-btn {
             background: #667eea;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 8px 16px;
+            border-radius: 15px;
             cursor: pointer;
+            font-size: 0.9em;
             transition: all 0.3s ease;
         }
 
@@ -160,7 +207,6 @@
             display: none;
             text-align: center;
             color: #667eea;
-            font-size: 1.2em;
             margin: 20px 0;
         }
 
@@ -172,8 +218,8 @@
             border: 3px solid #f3f3f3;
             border-top: 3px solid #667eea;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 25px;
+            height: 25px;
             animation: spin 1s linear infinite;
             margin: 0 auto 10px;
         }
@@ -183,35 +229,24 @@
             100% { transform: rotate(360deg); }
         }
 
-        .info-panel {
-            background: #e8f4f8;
+        .feature-highlight {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 3px 8px;
             border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
         }
 
-        .info-panel h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .info-panel ul {
-            color: #666;
-            padding-left: 20px;
-        }
-
-        .info-panel li {
-            margin-bottom: 5px;
-        }
-
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
             .main-content {
                 grid-template-columns: 1fr;
             }
-            
+        }
+
+        @media (max-width: 768px) {
             .container {
-                padding: 20px;
-                margin: 20px;
+                padding: 15px;
             }
             
             .header h1 {
@@ -223,373 +258,447 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📸 Photo to 3D Avatar</h1>
-            <p>Upload a head photo and generate a 3D avatar instantly</p>
+            <h1>🤖 AI Face Detection Avatar</h1>
+            <p>Advanced face analysis for realistic 3D avatar generation</p>
+        </div>
+
+        <div class="init-status loading" id="initStatus">
+            <div class="spinner"></div>
+            Loading AI models... Please wait
         </div>
 
         <div class="main-content">
-            <div class="upload-section" id="uploadSection">
-                <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+            <!-- Upload Section -->
+            <div class="section">
+                <h3>📸 Upload Photo</h3>
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
                     <div class="upload-icon">📷</div>
-                    <h3>Upload Head Photo</h3>
-                    <p>Drag & drop or click to select</p>
-                    <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
-                        Supported: JPG, PNG, WEBP (Max 10MB)
-                    </p>
+                    <div>Drop photo here or click</div>
+                    <div style="font-size: 0.9em; color: #999; margin-top: 10px;">
+                        Best results: Front-facing, good lighting
+                    </div>
                     <button class="upload-btn">Choose Photo</button>
                 </div>
                 <input type="file" id="fileInput" class="file-input" accept="image/*">
+                
+                <div class="photo-container" id="photoContainer" style="display: none;">
+                    <img id="photoPreview" class="photo-preview" alt="Preview">
+                    <canvas id="detectionCanvas" class="detection-canvas"></canvas>
+                </div>
             </div>
 
-            <div class="preview-section">
-                <div id="photoPreview" style="display: none;">
-                    <img id="previewImg" class="photo-preview" alt="Preview">
+            <!-- Analysis Section -->
+            <div class="section">
+                <h3>🔍 Face Analysis</h3>
+                <div class="loading" id="analysisLoading">
+                    <div class="spinner"></div>
+                    <div>Analyzing facial features...</div>
                 </div>
                 
-                <div class="loading" id="loading">
+                <div id="analysisResults" class="analysis-results" style="display: none;">
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <span class="feature-highlight">Face Detected!</span>
+                    </div>
+                    <div id="featuresList"></div>
+                </div>
+
+                <div class="controls">
+                    <button class="control-btn" id="analyzeBtn" disabled>Analyze Face</button>
+                    <button class="control-btn" id="toggleLandmarksBtn" disabled>Toggle Landmarks</button>
+                    <button class="control-btn" id="generateAvatarBtn" disabled>Generate Avatar</button>
+                </div>
+            </div>
+
+            <!-- 3D Avatar Section -->
+            <div class="section">
+                <h3>🎭 3D Avatar</h3>
+                <div class="loading" id="avatarLoading">
                     <div class="spinner"></div>
-                    <div>Generating 3D Avatar...</div>
+                    <div>Creating 3D avatar...</div>
                 </div>
 
                 <div class="avatar-viewer" id="avatarViewer">
                     <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;">
-                        <div style="font-size: 3em; margin-bottom: 20px;">🎭</div>
-                        <div>Your 3D avatar will appear here</div>
+                        <div style="font-size: 3em; margin-bottom: 15px;">🎭</div>
+                        <div>AI-generated avatar will appear here</div>
                     </div>
                 </div>
 
                 <div class="controls">
-                    <button class="control-btn" id="generateBtn" disabled>Generate 3D Avatar</button>
                     <button class="control-btn" id="rotateBtn" disabled>Auto Rotate</button>
-                    <button class="control-btn" id="exportBtn" disabled>Export GLB</button>
+                    <button class="control-btn" id="morphBtn" disabled>Morph Features</button>
+                    <button class="control-btn" id="exportBtn" disabled>Export</button>
                     <button class="control-btn" id="resetBtn">Reset</button>
                 </div>
             </div>
         </div>
-
-        <div class="info-panel">
-            <h3>How it works:</h3>
-            <ul>
-                <li>Upload a clear front-facing photo of a head/face</li>
-                <li>Our system analyzes facial features and proportions</li>
-                <li>A 3D avatar model is generated based on the photo</li>
-                <li>You can rotate, customize, and export your avatar</li>
-            </ul>
-        </div>
     </div>
 
     <script>
-        class PhotoTo3DAvatar {
+        class AIFaceDetectionAvatar {
             constructor() {
+                this.isModelLoaded = false;
+                this.uploadedImage = null;
+                this.faceDetections = null;
+                this.faceLandmarks = null;
+                this.faceDescriptor = null;
+                this.showLandmarks = true;
+                
+                // 3D Scene variables
                 this.scene = null;
                 this.camera = null;
                 this.renderer = null;
                 this.avatar = null;
                 this.isRotating = false;
-                this.uploadedImage = null;
+                this.isMorphing = false;
+                this.clock = new THREE.Clock();
+
+                this.initializeApp();
+            }
+
+            async initializeApp() {
+                try {
+                    await this.loadFaceAPIModels();
+                    this.initializeEventListeners();
+                    this.updateInitStatus('✅ AI Models loaded successfully!', false);
+                } catch (error) {
+                    console.error('Failed to initialize:', error);
+                    this.updateInitStatus('❌ Failed to load AI models', false);
+                }
+            }
+
+            async loadFaceAPIModels() {
+                const modelUrl = 'https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/weights/';
                 
-                this.initializeEventListeners();
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
+                    faceapi.nets.faceExpressionNet.loadFromUri(modelUrl)
+                ]);
+                
+                this.isModelLoaded = true;
+            }
+
+            updateInitStatus(message, isLoading) {
+                const status = document.getElementById('initStatus');
+                status.innerHTML = isLoading ? 
+                    `<div class="spinner"></div>${message}` : 
+                    message;
+                status.className = isLoading ? 'init-status loading' : 'init-status';
             }
 
             initializeEventListeners() {
                 const fileInput = document.getElementById('fileInput');
-                const uploadSection = document.getElementById('uploadSection');
-                const generateBtn = document.getElementById('generateBtn');
+                const uploadZone = document.getElementById('uploadZone');
+                const analyzeBtn = document.getElementById('analyzeBtn');
+                const toggleLandmarksBtn = document.getElementById('toggleLandmarksBtn');
+                const generateAvatarBtn = document.getElementById('generateAvatarBtn');
                 const rotateBtn = document.getElementById('rotateBtn');
+                const morphBtn = document.getElementById('morphBtn');
                 const exportBtn = document.getElementById('exportBtn');
                 const resetBtn = document.getElementById('resetBtn');
 
-                // File upload handlers
                 fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
                 
-                // Drag & drop handlers
-                uploadSection.addEventListener('dragover', (e) => {
+                uploadZone.addEventListener('dragover', (e) => {
                     e.preventDefault();
-                    uploadSection.classList.add('dragover');
+                    uploadZone.classList.add('dragover');
                 });
                 
-                uploadSection.addEventListener('dragleave', () => {
-                    uploadSection.classList.remove('dragover');
-                });
+                uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
                 
-                uploadSection.addEventListener('drop', (e) => {
+                uploadZone.addEventListener('drop', (e) => {
                     e.preventDefault();
-                    uploadSection.classList.remove('dragover');
+                    uploadZone.classList.remove('dragover');
                     const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        this.processFile(files[0]);
-                    }
+                    if (files.length > 0) this.processFile(files[0]);
                 });
 
-                // Control buttons
-                generateBtn.addEventListener('click', () => this.generate3DAvatar());
+                analyzeBtn.addEventListener('click', () => this.analyzeFace());
+                toggleLandmarksBtn.addEventListener('click', () => this.toggleLandmarks());
+                generateAvatarBtn.addEventListener('click', () => this.generateAvatar());
                 rotateBtn.addEventListener('click', () => this.toggleRotation());
+                morphBtn.addEventListener('click', () => this.toggleMorph());
                 exportBtn.addEventListener('click', () => this.exportAvatar());
                 resetBtn.addEventListener('click', () => this.resetApp());
             }
 
             handleFileUpload(event) {
                 const file = event.target.files[0];
-                if (file) {
-                    this.processFile(file);
-                }
+                if (file) this.processFile(file);
             }
 
             processFile(file) {
-                // Validate file
                 if (!file.type.startsWith('image/')) {
                     alert('Please upload an image file');
                     return;
                 }
-
                 if (file.size > 10 * 1024 * 1024) {
                     alert('File size must be less than 10MB');
                     return;
                 }
-
-                // Show preview
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     this.uploadedImage = e.target.result;
                     this.showPhotoPreview(e.target.result);
-                    document.getElementById('generateBtn').disabled = false;
+                    document.getElementById('analyzeBtn').disabled = false;
                 };
                 reader.readAsDataURL(file);
             }
 
             showPhotoPreview(imageSrc) {
-                const previewDiv = document.getElementById('photoPreview');
-                const previewImg = document.getElementById('previewImg');
-                
-                previewImg.src = imageSrc;
-                previewDiv.style.display = 'block';
+                const container = document.getElementById('photoContainer');
+                const preview = document.getElementById('photoPreview');
+                preview.src = imageSrc;
+                container.style.display = 'block';
+                preview.onload = () => this.setupDetectionCanvas();
             }
 
-            async generate3DAvatar() {
-                if (!this.uploadedImage) return;
+            setupDetectionCanvas() {
+                const preview = document.getElementById('photoPreview');
+                const canvas = document.getElementById('detectionCanvas');
+                canvas.width = preview.clientWidth;
+                canvas.height = preview.clientHeight;
+                canvas.style.width = preview.clientWidth + 'px';
+                canvas.style.height = preview.clientHeight + 'px';
+            }
 
-                // Show loading
-                document.getElementById('loading').classList.add('show');
-                document.getElementById('generateBtn').disabled = true;
-
+            async analyzeFace() {
+                if (!this.isModelLoaded || !this.uploadedImage) return;
+                const loading = document.getElementById('analysisLoading');
+                loading.classList.add('show');
+                document.getElementById('analyzeBtn').disabled = true;
                 try {
-                    // Initialize 3D scene
-                    this.init3DScene();
-                    
-                    // Simulate processing time and generate avatar
-                    await this.simulateAvatarGeneration();
-                    
-                    // Create 3D avatar based on photo
-                    this.create3DAvatar();
-                    
-                    // Enable controls
-                    document.getElementById('rotateBtn').disabled = false;
-                    document.getElementById('exportBtn').disabled = false;
-                    
+                    const preview = document.getElementById('photoPreview');
+                    const detections = await faceapi
+                        .detectAllFaces(preview, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceDescriptors()
+                        .withFaceExpressions();
+                    if (detections.length === 0) {
+                        alert('No face detected. Try a clearer front-facing photo.');
+                        return;
+                    }
+                    this.faceDetections = detections[0];
+                    this.faceLandmarks = detections[0].landmarks;
+                    this.faceDescriptor = detections[0].descriptor;
+                    this.displayAnalysisResults();
+                    this.drawFaceDetection();
+                    document.getElementById('toggleLandmarksBtn').disabled = false;
+                    document.getElementById('generateAvatarBtn').disabled = false;
                 } catch (error) {
-                    console.error('Error generating avatar:', error);
-                    alert('Error generating avatar. Please try again.');
+                    console.error('Face analysis error:', error);
+                    alert('Error analyzing face. Please try again.');
                 } finally {
-                    document.getElementById('loading').classList.remove('show');
+                    loading.classList.remove('show');
+                }
+            }
+
+            displayAnalysisResults() {
+                const resultsDiv = document.getElementById('analysisResults');
+                const featuresList = document.getElementById('featuresList');
+                if (!this.faceDetections) return;
+                const { detection, expressions, landmarks } = this.faceDetections;
+                const faceWidth = detection.box.width;
+                const faceHeight = detection.box.height;
+                const aspectRatio = (faceWidth / faceHeight).toFixed(2);
+                const dominantExpression = Object.keys(expressions).reduce((a, b) => expressions[a] > expressions[b] ? a : b);
+                const leftEye = landmarks.getLeftEye();
+                const rightEye = landmarks.getRightEye();
+                const eyeDistance = Math.sqrt(Math.pow(rightEye[0].x - leftEye[3].x, 2) + Math.pow(rightEye[0].y - leftEye[3].y, 2)).toFixed(1);
+                featuresList.innerHTML = `
+                    <div class="analysis-item"><span>Face Dimensions:</span><span>${Math.round(faceWidth)} × ${Math.round(faceHeight)} px</span></div>
+                    <div class="analysis-item"><span>Face Ratio:</span><span>${aspectRatio}</span></div>
+                    <div class="analysis-item"><span>Eye Distance:</span><span>${eyeDistance} px</span></div>
+                    <div class="analysis-item"><span>Dominant Expression:</span><span>${dominantExpression}</span></div>
+                    <div class="analysis-item"><span>Confidence:</span><span>${(expressions[dominantExpression] * 100).toFixed(1)}%</span></div>
+                    <div class="analysis-item"><span>Landmarks Detected:</span><span>${landmarks.positions.length} points</span></div>
+                `;
+                resultsDiv.style.display = 'block';
+            }
+
+            drawFaceDetection() {
+                const canvas = document.getElementById('detectionCanvas');
+                const ctx = canvas.getContext('2d');
+                const preview = document.getElementById('photoPreview');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (!this.faceDetections) return;
+                const scaleX = canvas.width / preview.naturalWidth;
+                const scaleY = canvas.height / preview.naturalHeight;
+                const box = this.faceDetections.detection.box;
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(box.x * scaleX, box.y * scaleY, box.width * scaleX, box.height * scaleY);
+                if (this.showLandmarks && this.faceLandmarks) {
+                    ctx.fillStyle = '#ff0000';
+                    this.faceLandmarks.positions.forEach(point => {
+                        ctx.beginPath();
+                        ctx.arc(point.x * scaleX, point.y * scaleY, 1.5, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+                }
+            }
+
+            toggleLandmarks() {
+                this.showLandmarks = !this.showLandmarks;
+                this.drawFaceDetection();
+                document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
+            }
+
+            async generateAvatar() {
+                if (!this.faceDetections) return;
+                const loading = document.getElementById('avatarLoading');
+                loading.classList.add('show');
+                document.getElementById('generateAvatarBtn').disabled = true;
+                try {
+                    this.init3DScene();
+                    await this.createAIAvatar();
+                    document.getElementById('rotateBtn').disabled = false;
+                    document.getElementById('morphBtn').disabled = false;
+                    document.getElementById('exportBtn').disabled = false;
+                } catch (error) {
+                    console.error('Avatar generation error:', error);
+                    alert('Error generating avatar.');
+                } finally {
+                    loading.classList.remove('show');
                 }
             }
 
             init3DScene() {
                 const container = document.getElementById('avatarViewer');
                 container.innerHTML = '';
-
-                // Scene setup
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x2a2a2a);
-
-                // Camera setup
-                this.camera = new THREE.PerspectiveCamera(
-                    75,
-                    container.clientWidth / container.clientHeight,
-                    0.1,
-                    1000
-                );
+                this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
                 this.camera.position.z = 3;
-
-                // Renderer setup
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
                 this.renderer.setSize(container.clientWidth, container.clientHeight);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 container.appendChild(this.renderer.domElement);
-
-                // Lighting
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
                 this.scene.add(ambientLight);
-
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
                 directionalLight.position.set(1, 1, 1);
                 this.scene.add(directionalLight);
-
-                const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-                fillLight.position.set(-1, 0, 1);
-                this.scene.add(fillLight);
-
-                // Handle window resize
-                window.addEventListener('resize', () => this.onWindowResize());
             }
 
-            async simulateAvatarGeneration() {
-                // Simulate API processing time
-                return new Promise(resolve => setTimeout(resolve, 2000));
-            }
+            async createAIAvatar() {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                const { detection, expressions, landmarks } = this.faceDetections;
+                const faceWidth = detection.box.width;
+                const faceHeight = detection.box.height;
+                const aspectRatio = faceWidth / faceHeight;
+                const leftEye = landmarks.getLeftEye();
+                const rightEye = landmarks.getRightEye();
+                const eyeDistance = Math.sqrt(Math.pow(rightEye[0].x - leftEye[3].x, 2) + Math.pow(rightEye[0].y - leftEye[3].y, 2));
 
-            create3DAvatar() {
-                // Create a basic avatar head (this would be replaced with actual face reconstruction)
-                const group = new THREE.Group();
+                const avatarGroup = new THREE.Group();
+                this.avatar = avatarGroup;
 
-                // Head (sphere)
                 const headGeometry = new THREE.SphereGeometry(1, 32, 32);
-                const headMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xfdbcb4,
-                    shininess: 10 
-                });
+                const headMaterial = new THREE.MeshPhongMaterial({ color: 0xfdbcb4, shininess: 10 });
                 const head = new THREE.Mesh(headGeometry, headMaterial);
-                head.scale.set(1, 1.2, 0.9);
-                group.add(head);
+                const headScaleX = Math.max(0.8, Math.min(1.2, aspectRatio));
+                const headScaleY = Math.max(0.9, Math.min(1.3, 1 / aspectRatio));
+                head.scale.set(headScaleX, headScaleY, 0.9);
+                avatarGroup.add(head);
 
-                // Eyes
-                const eyeGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                const eyeGeometry = new THREE.SphereGeometry(0.12, 16, 16);
                 const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-                
-                const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                leftEye.position.set(-0.3, 0.2, 0.8);
-                group.add(leftEye);
-                
-                const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                rightEye.position.set(0.3, 0.2, 0.8);
-                group.add(rightEye);
+                const eyeSpacing = Math.max(0.25, Math.min(0.4, eyeDistance / faceWidth * 0.6));
+                const leftEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                leftEyeMesh.position.set(-eyeSpacing, 0.15, 0.8);
+                avatarGroup.add(leftEyeMesh);
+                const rightEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                rightEyeMesh.position.set(eyeSpacing, 0.15, 0.8);
+                avatarGroup.add(rightEyeMesh);
 
-                // Pupils
-                const pupilGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+                const pupilGeometry = new THREE.SphereGeometry(0.06, 16, 16);
                 const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-                
                 const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-                leftPupil.position.set(-0.3, 0.2, 0.85);
-                group.add(leftPupil);
-                
+                leftPupil.position.set(-eyeSpacing, 0.15, 0.85);
+                avatarGroup.add(leftPupil);
                 const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
-                rightPupil.position.set(0.3, 0.2, 0.85);
-                group.add(rightPupil);
+                rightPupil.position.set(eyeSpacing, 0.15, 0.85);
+                avatarGroup.add(rightPupil);
 
-                // Nose
-                const noseGeometry = new THREE.ConeGeometry(0.1, 0.3, 8);
-                const noseMaterial = new THREE.MeshPhongMaterial({ color: 0xfdbcb4 });
-                const nose = new THREE.Mesh(noseGeometry, noseMaterial);
-                nose.position.set(0, -0.1, 0.8);
-                nose.rotation.x = Math.PI;
-                group.add(nose);
-
-                // Mouth
-                const mouthGeometry = new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
-                const mouthMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
-                const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
-                mouth.position.set(0, -0.5, 0.6);
-                mouth.rotation.x = -Math.PI * 0.1;
-                group.add(mouth);
-
-                // Hair (simple cap)
-                const hairGeometry = new THREE.SphereGeometry(1.1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
-                const hairMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
+                const hairGeometry = new THREE.SphereGeometry(1.05, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.7);
+                const hairColors = [0x8b4513, 0x4a4a4a, 0xffd700, 0x654321, 0x2c1810];
+                const hairColor = hairColors[Math.floor(Math.random() * hairColors.length)];
+                const hairMaterial = new THREE.MeshPhongMaterial({ color: hairColor });
                 const hair = new THREE.Mesh(hairGeometry, hairMaterial);
-                hair.position.set(0, 0.3, 0);
-                group.add(hair);
+                hair.position.y = 0.1;
+                avatarGroup.add(hair);
 
-                this.avatar = group;
-                this.scene.add(this.avatar);
-
-                // Start render loop
-                this.animate();
+                this.scene.add(avatarGroup);
+                this.animate(); // Start the animation loop
             }
 
             animate() {
-                if (!this.renderer || !this.scene || !this.camera) return;
-                
                 requestAnimationFrame(() => this.animate());
-
-                if (this.avatar && this.isRotating) {
-                    this.avatar.rotation.y += 0.01;
+                const delta = this.clock.getDelta();
+                if (this.avatar) {
+                    if (this.isRotating) {
+                        this.avatar.rotation.y += delta * 0.5;
+                    }
+                    if (this.isMorphing) {
+                        // Add a subtle "breathing" animation
+                        const time = this.clock.getElapsedTime();
+                        this.avatar.children[0].scale.y = 1 + Math.sin(time * 2) * 0.02; // Head
+                        this.avatar.children[1].scale.setScalar(1 + Math.sin(time * 1.5) * 0.05); // Left Eye
+                        this.avatar.children[2].scale.setScalar(1 + Math.sin(time * 1.5) * 0.05); // Right Eye
+                    }
                 }
-
                 this.renderer.render(this.scene, this.camera);
             }
-
+            
             toggleRotation() {
                 this.isRotating = !this.isRotating;
-                const btn = document.getElementById('rotateBtn');
-                btn.textContent = this.isRotating ? 'Stop Rotation' : 'Auto Rotate';
+                document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate';
+            }
+
+            toggleMorph() {
+                this.isMorphing = !this.isMorphing;
+                document.getElementById('morphBtn').textContent = this.isMorphing ? 'Stop Morph' : 'Morph Features';
             }
 
             exportAvatar() {
-                if (!this.avatar) {
-                    alert('No avatar to export');
-                    return;
-                }
-
-                // This is a simplified export - in a real app you'd use GLTFExporter
-                alert('Export functionality would save the 3D model as GLB/GLTF format');
-                
-                // Real implementation would be:
-                // const exporter = new THREE.GLTFExporter();
-                // exporter.parse(this.avatar, (gltf) => {
-                //     const blob = new Blob([JSON.stringify(gltf)], {type: 'application/json'});
-                //     const url = URL.createObjectURL(blob);
-                //     const a = document.createElement('a');
-                //     a.href = url;
-                //     a.download = 'avatar.gltf';
-                //     a.click();
-                // });
+                if (!this.renderer) return;
+                const dataURL = this.renderer.domElement.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = 'ai_avatar.png';
+                link.href = dataURL;
+                link.click();
             }
 
             resetApp() {
-                // Clear 3D scene
-                if (this.scene) {
-                    this.scene.clear();
-                    if (this.renderer) {
-                        this.renderer.dispose();
-                    }
-                }
-
-                // Reset UI
-                document.getElementById('photoPreview').style.display = 'none';
-                document.getElementById('fileInput').value = '';
-                document.getElementById('avatarViewer').innerHTML = `
-                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;">
-                        <div style="font-size: 3em; margin-bottom: 20px;">🎭</div>
-                        <div>Your 3D avatar will appear here</div>
-                    </div>
-                `;
-
-                // Reset buttons
-                document.getElementById('generateBtn').disabled = true;
-                document.getElementById('rotateBtn').disabled = true;
-                document.getElementById('exportBtn').disabled = true;
-                document.getElementById('rotateBtn').textContent = 'Auto Rotate';
-
-                // Reset state
                 this.uploadedImage = null;
-                this.avatar = null;
+                this.faceDetections = null;
+                this.faceLandmarks = null;
                 this.isRotating = false;
-            }
+                this.isMorphing = false;
 
-            onWindowResize() {
-                if (!this.camera || !this.renderer) return;
+                document.getElementById('photoContainer').style.display = 'none';
+                document.getElementById('photoPreview').src = '';
+                document.getElementById('fileInput').value = '';
+                const detectionCanvas = document.getElementById('detectionCanvas');
+                detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
                 
-                const container = document.getElementById('avatarViewer');
-                this.camera.aspect = container.clientWidth / container.clientHeight;
-                this.camera.updateProjectionMatrix();
-                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                document.getElementById('analysisResults').style.display = 'none';
+                document.getElementById('featuresList').innerHTML = '';
+                
+                document.getElementById('avatarViewer').innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div>`;
+                this.renderer = null; this.scene = null; this.camera = null; this.avatar = null;
+
+                ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => {
+                    document.getElementById(id).disabled = true;
+                });
             }
         }
 
         // Initialize the app
-        document.addEventListener('DOMContentLoaded', () => {
-            new PhotoTo3DAvatar();
-        });
+        window.onload = () => new AIFaceDetectionAvatar();
     </script>
 </body>
 </html>
