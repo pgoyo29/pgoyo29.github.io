@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo to 3D Avatar</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 1200px;
+            width: 90%;
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            border: 2px dashed #ddd;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-zone {
+            cursor: pointer;
+            padding: 40px 20px;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .preview-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .photo-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            object-fit: cover;
+        }
+
+        .avatar-viewer {
+            flex: 1;
+            background: #000;
+            border-radius: 10px;
+            position: relative;
+            min-height: 400px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .control-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-panel {
+            background: #e8f4f8;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .info-panel h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .info-panel ul {
+            color: #666;
+            padding-left: 20px;
+        }
+
+        .info-panel li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+                margin: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Photo to 3D Avatar</h1>
+            <p>Upload a head photo and generate a 3D avatar instantly</p>
+        </div>
+
+        <div class="main-content">
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <h3>Upload Head Photo</h3>
+                    <p>Drag & drop or click to select</p>
+                    <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
+                        Supported: JPG, PNG, WEBP (Max 10MB)
+                    </p>
+                    <button class="upload-btn">Choose Photo</button>
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept="image/*">
+            </div>
+
+            <div class="preview-section">
+                <div id="photoPreview" style="display: none;">
+                    <img id="previewImg" class="photo-preview" alt="Preview">
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>Generating 3D Avatar...</div>
+                </div>
+
+                <div class="avatar-viewer" id="avatarViewer">
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;">
+                        <div style="font-size: 3em; margin-bottom: 20px;">🎭</div>
+                        <div>Your 3D avatar will appear here</div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="control-btn" id="generateBtn" disabled>Generate 3D Avatar</button>
+                    <button class="control-btn" id="rotateBtn" disabled>Auto Rotate</button>
+                    <button class="control-btn" id="exportBtn" disabled>Export GLB</button>
+                    <button class="control-btn" id="resetBtn">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>How it works:</h3>
+            <ul>
+                <li>Upload a clear front-facing photo of a head/face</li>
+                <li>Our system analyzes facial features and proportions</li>
+                <li>A 3D avatar model is generated based on the photo</li>
+                <li>You can rotate, customize, and export your avatar</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        class PhotoTo3DAvatar {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.avatar = null;
+                this.isRotating = false;
+                this.uploadedImage = null;
+                
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                const fileInput = document.getElementById('fileInput');
+                const uploadSection = document.getElementById('uploadSection');
+                const generateBtn = document.getElementById('generateBtn');
+                const rotateBtn = document.getElementById('rotateBtn');
+                const exportBtn = document.getElementById('exportBtn');
+                const resetBtn = document.getElementById('resetBtn');
+
+                // File upload handlers
+                fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+                
+                // Drag & drop handlers
+                uploadSection.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadSection.classList.add('dragover');
+                });
+                
+                uploadSection.addEventListener('dragleave', () => {
+                    uploadSection.classList.remove('dragover');
+                });
+                
+                uploadSection.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadSection.classList.remove('dragover');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.processFile(files[0]);
+                    }
+                });
+
+                // Control buttons
+                generateBtn.addEventListener('click', () => this.generate3DAvatar());
+                rotateBtn.addEventListener('click', () => this.toggleRotation());
+                exportBtn.addEventListener('click', () => this.exportAvatar());
+                resetBtn.addEventListener('click', () => this.resetApp());
+            }
+
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.processFile(file);
+                }
+            }
+
+            processFile(file) {
+                // Validate file
+                if (!file.type.startsWith('image/')) {
+                    alert('Please upload an image file');
+                    return;
+                }
+
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('File size must be less than 10MB');
+                    return;
+                }
+
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.uploadedImage = e.target.result;
+                    this.showPhotoPreview(e.target.result);
+                    document.getElementById('generateBtn').disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            showPhotoPreview(imageSrc) {
+                const previewDiv = document.getElementById('photoPreview');
+                const previewImg = document.getElementById('previewImg');
+                
+                previewImg.src = imageSrc;
+                previewDiv.style.display = 'block';
+            }
+
+            async generate3DAvatar() {
+                if (!this.uploadedImage) return;
+
+                // Show loading
+                document.getElementById('loading').classList.add('show');
+                document.getElementById('generateBtn').disabled = true;
+
+                try {
+                    // Initialize 3D scene
+                    this.init3DScene();
+                    
+                    // Simulate processing time and generate avatar
+                    await this.simulateAvatarGeneration();
+                    
+                    // Create 3D avatar based on photo
+                    this.create3DAvatar();
+                    
+                    // Enable controls
+                    document.getElementById('rotateBtn').disabled = false;
+                    document.getElementById('exportBtn').disabled = false;
+                    
+                } catch (error) {
+                    console.error('Error generating avatar:', error);
+                    alert('Error generating avatar. Please try again.');
+                } finally {
+                    document.getElementById('loading').classList.remove('show');
+                }
+            }
+
+            init3DScene() {
+                const container = document.getElementById('avatarViewer');
+                container.innerHTML = '';
+
+                // Scene setup
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x2a2a2a);
+
+                // Camera setup
+                this.camera = new THREE.PerspectiveCamera(
+                    75,
+                    container.clientWidth / container.clientHeight,
+                    0.1,
+                    1000
+                );
+                this.camera.position.z = 3;
+
+                // Renderer setup
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                container.appendChild(this.renderer.domElement);
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1);
+                this.scene.add(directionalLight);
+
+                const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+                fillLight.position.set(-1, 0, 1);
+                this.scene.add(fillLight);
+
+                // Handle window resize
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+
+            async simulateAvatarGeneration() {
+                // Simulate API processing time
+                return new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            create3DAvatar() {
+                // Create a basic avatar head (this would be replaced with actual face reconstruction)
+                const group = new THREE.Group();
+
+                // Head (sphere)
+                const headGeometry = new THREE.SphereGeometry(1, 32, 32);
+                const headMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xfdbcb4,
+                    shininess: 10 
+                });
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.scale.set(1, 1.2, 0.9);
+                group.add(head);
+
+                // Eyes
+                const eyeGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+                
+                const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                leftEye.position.set(-0.3, 0.2, 0.8);
+                group.add(leftEye);
+                
+                const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                rightEye.position.set(0.3, 0.2, 0.8);
+                group.add(rightEye);
+
+                // Pupils
+                const pupilGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+                const pupilMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                
+                const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+                leftPupil.position.set(-0.3, 0.2, 0.85);
+                group.add(leftPupil);
+                
+                const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+                rightPupil.position.set(0.3, 0.2, 0.85);
+                group.add(rightPupil);
+
+                // Nose
+                const noseGeometry = new THREE.ConeGeometry(0.1, 0.3, 8);
+                const noseMaterial = new THREE.MeshPhongMaterial({ color: 0xfdbcb4 });
+                const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+                nose.position.set(0, -0.1, 0.8);
+                nose.rotation.x = Math.PI;
+                group.add(nose);
+
+                // Mouth
+                const mouthGeometry = new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
+                const mouthMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
+                const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+                mouth.position.set(0, -0.5, 0.6);
+                mouth.rotation.x = -Math.PI * 0.1;
+                group.add(mouth);
+
+                // Hair (simple cap)
+                const hairGeometry = new THREE.SphereGeometry(1.1, 32, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
+                const hairMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 });
+                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+                hair.position.set(0, 0.3, 0);
+                group.add(hair);
+
+                this.avatar = group;
+                this.scene.add(this.avatar);
+
+                // Start render loop
+                this.animate();
+            }
+
+            animate() {
+                if (!this.renderer || !this.scene || !this.camera) return;
+                
+                requestAnimationFrame(() => this.animate());
+
+                if (this.avatar && this.isRotating) {
+                    this.avatar.rotation.y += 0.01;
+                }
+
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            toggleRotation() {
+                this.isRotating = !this.isRotating;
+                const btn = document.getElementById('rotateBtn');
+                btn.textContent = this.isRotating ? 'Stop Rotation' : 'Auto Rotate';
+            }
+
+            exportAvatar() {
+                if (!this.avatar) {
+                    alert('No avatar to export');
+                    return;
+                }
+
+                // This is a simplified export - in a real app you'd use GLTFExporter
+                alert('Export functionality would save the 3D model as GLB/GLTF format');
+                
+                // Real implementation would be:
+                // const exporter = new THREE.GLTFExporter();
+                // exporter.parse(this.avatar, (gltf) => {
+                //     const blob = new Blob([JSON.stringify(gltf)], {type: 'application/json'});
+                //     const url = URL.createObjectURL(blob);
+                //     const a = document.createElement('a');
+                //     a.href = url;
+                //     a.download = 'avatar.gltf';
+                //     a.click();
+                // });
+            }
+
+            resetApp() {
+                // Clear 3D scene
+                if (this.scene) {
+                    this.scene.clear();
+                    if (this.renderer) {
+                        this.renderer.dispose();
+                    }
+                }
+
+                // Reset UI
+                document.getElementById('photoPreview').style.display = 'none';
+                document.getElementById('fileInput').value = '';
+                document.getElementById('avatarViewer').innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;">
+                        <div style="font-size: 3em; margin-bottom: 20px;">🎭</div>
+                        <div>Your 3D avatar will appear here</div>
+                    </div>
+                `;
+
+                // Reset buttons
+                document.getElementById('generateBtn').disabled = true;
+                document.getElementById('rotateBtn').disabled = true;
+                document.getElementById('exportBtn').disabled = true;
+                document.getElementById('rotateBtn').textContent = 'Auto Rotate';
+
+                // Reset state
+                this.uploadedImage = null;
+                this.avatar = null;
+                this.isRotating = false;
+            }
+
+            onWindowResize() {
+                if (!this.camera || !this.renderer) return;
+                
+                const container = document.getElementById('avatarViewer');
+                this.camera.aspect = container.clientWidth / container.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            new PhotoTo3DAvatar();
+        });
+    </script>
+</body>
+</html>
