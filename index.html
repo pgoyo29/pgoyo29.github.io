@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 2 (Working)</title>
+    <title>AI Face Detection Avatar Generator - Step 2 (Local Asset)</title>
     
     <!-- All scripts are correct and in the correct order -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -251,20 +251,16 @@
                 this.gltfLoader.setKTX2Loader(ktx2Loader);
             }
             async createAIAvatar() {
-                const modelUrl = 'https://threejs.org/examples/models/gltf/facecap.glb';
+                // *** THE ONLY CHANGE IS HERE ***
+                const modelUrl = './assets/facecap.glb'; // Use the local path
+
                 try {
                     const gltf = await this.gltfLoader.loadAsync(modelUrl);
                     
-                    // FOR DEBUGGING: Let's see what's actually in the model
-                    console.log("Loaded GLTF Scene:", gltf.scene);
-
-                    // FIX: Traverse the scene to find the first available mesh
                     let headModel = null;
                     gltf.scene.traverse(function (object) {
-                        if (object.isMesh) {
-                            if (!headModel) { // Grab the first mesh we find
-                                headModel = object;
-                            }
+                        if (object.isMesh && !headModel) {
+                            headModel = object;
                         }
                     });
 
@@ -272,8 +268,6 @@
                         throw new Error("Could not find any mesh inside the loaded GLTF model.");
                     }
                     
-                    console.log("Found mesh:", headModel.name);
-
                     this.avatar = headModel;
                     this.avatar.scale.set(10, 10, 10);
                     this.avatar.position.set(0, -12, 0);
@@ -283,7 +277,7 @@
 
                 } catch (error) {
                     console.error("Failed to load or process 3D model:", error);
-                    alert("Could not load the 3D head model.");
+                    alert("Could not load the 3D head model. Make sure it's in the 'assets' folder.");
                 }
             }
 
