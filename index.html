@@ -4,18 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Face Detection Avatar Generator - Step 1 (Fixed)</title>
-    <!-- Keep Three.js for the 3D viewer -->
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <!-- TensorFlow.js and the face-landmarks-detection model scripts remain the same -->
+    <!-- Core TensorFlow.js scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
     
-    <!-- This new script is required for the 'mediapipe' runtime -->
+    <!-- FIX: The mediapipe script must be loaded BEFORE the tensorflow model script -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
 
     <style>
         /* CSS styles remain the same */
@@ -27,6 +26,7 @@
         .header p { color: #666; font-size: 1.1em; }
         .init-status { background: #f0f8ff; border: 2px solid #4CAF50; border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: center; color: #2e7d2e; font-weight: bold; }
         .init-status.loading { border-color: #ff9800; background: #fff3e0; color: #f57c00; }
+        .init-status.error { border-color: #f44336; background: #ffebee; color: #c62828; }
         .main-content { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; }
         .section { background: #f8f9fa; border-radius: 15px; padding: 20px; min-height: 400px; }
         .section h3 { color: #333; margin-bottom: 15px; font-size: 1.3em; text-align: center; }
@@ -67,6 +67,7 @@
         </div>
 
         <div class="main-content">
+            <!-- All other HTML remains exactly the same -->
             <!-- Upload Section -->
             <div class="section">
                 <h3>📸 Upload Photo</h3>
@@ -139,11 +140,8 @@
                 this.isModelLoaded = false;
                 this.uploadedImage = null;
                 this.showLandmarks = true;
-                
-                // Renamed to tfDetector for clarity
                 this.tfDetector = null;
                 this.faceMesh = null;
-                
                 this.scene = null;
                 this.camera = null;
                 this.renderer = null;
@@ -162,16 +160,15 @@
                     this.updateInitStatus('✅ AI Models loaded successfully!', false);
                 } catch (error) {
                     console.error('Failed to initialize:', error);
-                    this.updateInitStatus(`❌ Failed to load AI models: ${error.message}`, false);
+                    this.updateInitStatus(`❌ Failed to load AI models. Please check the console.`, false);
+                    document.getElementById('initStatus').classList.add('error');
                 }
             }
             
-            // FIX: Corrected model loading using the new API
             async loadTFModel() {
                 const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
                 const detectorConfig = {
-                    runtime: 'mediapipe', // Must be 'mediapipe' or 'tfjs'
-                    // This is needed to find the model files
+                    runtime: 'mediapipe',
                     solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh',
                     maxFaces: 1
                 };
@@ -186,7 +183,7 @@
             }
 
             initializeEventListeners() {
-                // This method remains the same
+                // This method is correct and does not need changes.
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
                 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -239,7 +236,6 @@
                 canvas.height = preview.clientHeight;
             }
             
-            // FIX: Use the new detector object to estimate faces
             async analyzeFace() {
                 if (!this.isModelLoaded || !this.uploadedImage) return;
                 const loading = document.getElementById('analysisLoading');
@@ -247,16 +243,15 @@
                 document.getElementById('analyzeBtn').disabled = true;
                 try {
                     const preview = document.getElementById('photoPreview');
-                    
-                    // Use the detector to estimate faces
                     const predictions = await this.tfDetector.estimateFaces(preview);
 
                     if (predictions.length === 0) {
                         alert('No face detected. Try a clearer front-facing photo.');
+                        document.getElementById('analyzeBtn').disabled = false;
+                        loading.classList.remove('show');
                         return;
                     }
                     
-                    // The keypoints are now nested under `keypoints`
                     this.faceMesh = predictions[0].keypoints;
                     console.log("Face Mesh Data (478 3D-points):", this.faceMesh);
 
@@ -277,21 +272,12 @@
                 const resultsDiv = document.getElementById('analysisResults');
                 const featuresList = document.getElementById('featuresList');
                 if (!this.faceMesh) return;
-
                 const box = prediction.box;
                 const faceWidth = Math.round(box.width);
                 const faceHeight = Math.round(box.height);
-
                 featuresList.innerHTML = `
-                    <div class="analysis-item">
-                        <span>Face Dimensions (Approx):</span>
-                        <span>${faceWidth} × ${faceHeight} px</span>
-                    </div>
-                    <div class="analysis-item">
-                        <span>3D Keypoints Detected:</span>
-                        <span>${this.faceMesh.length} points</span>
-                    </div>
-                `;
+                    <div class="analysis-item"><span>Face Dimensions (Approx):</span><span>${faceWidth} × ${faceHeight} px</span></div>
+                    <div class="analysis-item"><span>3D Keypoints Detected:</span><span>${this.faceMesh.length} points</span></div>`;
                 resultsDiv.style.display = 'block';
             }
             
@@ -300,14 +286,10 @@
                 const ctx = canvas.getContext('2d');
                 const preview = document.getElementById('photoPreview');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
                 if (!this.faceMesh || !this.showLandmarks) return;
-
                 const scaleX = canvas.width / preview.naturalWidth;
                 const scaleY = canvas.height / preview.naturalHeight;
-
                 ctx.fillStyle = '#ff0000';
-                
                 this.faceMesh.forEach(point => {
                     const x = point.x * scaleX;
                     const y = point.y * scaleY;
@@ -323,6 +305,7 @@
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
             
+            // The rest of the code is unchanged and correct for this step.
             async generateAvatar() {
                 if (!this.faceMesh) return;
                 const loading = document.getElementById('avatarLoading');
@@ -386,7 +369,7 @@
                         this.avatar.children[0].scale.y = 1 + Math.sin(time * 2) * 0.02;
                     }
                 }
-                this.renderer.render(this.scene, this.camera);
+                if (this.renderer) this.renderer.render(this.scene, this.camera);
             }
             
             toggleRotation() { this.isRotating = !this.isRotating; document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; }
@@ -394,14 +377,13 @@
             exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
             resetApp() {
                 this.uploadedImage = null; this.faceMesh = null; this.isRotating = false; this.isMorphing = false;
-                this.tfDetector = null; // Also clear the detector
                 document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
                 const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
                 document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
                 document.getElementById('avatarViewer').innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div>`;
                 this.renderer = null; this.scene = null; this.camera = null; this.avatar = null;
                 ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => { document.getElementById(id).disabled = true; });
-                // Re-initialize the app state after reset
+                this.updateInitStatus('Loading AI models...', true);
                 this.initializeApp();
             }
         }
