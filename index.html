@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 1</title>
+    <title>AI Face Detection Avatar Generator - Step 1 (Fixed)</title>
     <!-- Keep Three.js for the 3D viewer -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <!-- STEP 1 CHANGE: Remove face-api.js and add TensorFlow.js and the face-landmarks-detection model -->
+    <!-- TensorFlow.js and the face-landmarks-detection model scripts remain the same -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
+    
+    <!-- This new script is required for the 'mediapipe' runtime -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
 
     <style>
         /* CSS styles remain the same */
@@ -136,11 +140,10 @@
                 this.uploadedImage = null;
                 this.showLandmarks = true;
                 
-                // STEP 1 CHANGE: New properties for TF.js model and results
-                this.tfModel = null;
+                // Renamed to tfDetector for clarity
+                this.tfDetector = null;
                 this.faceMesh = null;
                 
-                // 3D Scene variables
                 this.scene = null;
                 this.camera = null;
                 this.renderer = null;
@@ -154,22 +157,25 @@
 
             async initializeApp() {
                 try {
-                    // STEP 1 CHANGE: Load the new TF.js model
                     await this.loadTFModel();
                     this.initializeEventListeners();
                     this.updateInitStatus('✅ AI Models loaded successfully!', false);
                 } catch (error) {
                     console.error('Failed to initialize:', error);
-                    this.updateInitStatus('❌ Failed to load AI models', false);
+                    this.updateInitStatus(`❌ Failed to load AI models: ${error.message}`, false);
                 }
             }
             
-            // STEP 1 CHANGE: New model loader for TensorFlow.js
+            // FIX: Corrected model loading using the new API
             async loadTFModel() {
-                this.tfModel = await faceLandmarksDetection.load(
-                    faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-                    { maxFaces: 1 } // Optimize for a single face
-                );
+                const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
+                const detectorConfig = {
+                    runtime: 'mediapipe', // Must be 'mediapipe' or 'tfjs'
+                    // This is needed to find the model files
+                    solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh',
+                    maxFaces: 1
+                };
+                this.tfDetector = await faceLandmarksDetection.createDetector(model, detectorConfig);
                 this.isModelLoaded = true;
             }
 
@@ -233,7 +239,7 @@
                 canvas.height = preview.clientHeight;
             }
             
-            // STEP 1 CHANGE: This is the core update to use the new model
+            // FIX: Use the new detector object to estimate faces
             async analyzeFace() {
                 if (!this.isModelLoaded || !this.uploadedImage) return;
                 const loading = document.getElementById('analysisLoading');
@@ -242,16 +248,16 @@
                 try {
                     const preview = document.getElementById('photoPreview');
                     
-                    // Use the TF.js model to estimate faces
-                    const predictions = await this.tfModel.estimateFaces({ input: preview });
+                    // Use the detector to estimate faces
+                    const predictions = await this.tfDetector.estimateFaces(preview);
 
                     if (predictions.length === 0) {
                         alert('No face detected. Try a clearer front-facing photo.');
                         return;
                     }
                     
-                    // Store the 3D keypoints (the mesh)
-                    this.faceMesh = predictions[0].scaledMesh;
+                    // The keypoints are now nested under `keypoints`
+                    this.faceMesh = predictions[0].keypoints;
                     console.log("Face Mesh Data (478 3D-points):", this.faceMesh);
 
                     this.displayAnalysisResults(predictions[0]);
@@ -267,16 +273,14 @@
                 }
             }
             
-            // STEP 1 CHANGE: Display results from the new model
             displayAnalysisResults(prediction) {
                 const resultsDiv = document.getElementById('analysisResults');
                 const featuresList = document.getElementById('featuresList');
                 if (!this.faceMesh) return;
 
-                // Get bounding box from the mesh itself
-                const box = prediction.boundingBox;
-                const faceWidth = Math.round(box.xMax - box.xMin);
-                const faceHeight = Math.round(box.yMax - box.yMin);
+                const box = prediction.box;
+                const faceWidth = Math.round(box.width);
+                const faceHeight = Math.round(box.height);
 
                 featuresList.innerHTML = `
                     <div class="analysis-item">
@@ -291,7 +295,6 @@
                 resultsDiv.style.display = 'block';
             }
             
-            // STEP 1 CHANGE: Draw the new 3D mesh points on the canvas
             drawFaceDetection() {
                 const canvas = document.getElementById('detectionCanvas');
                 const ctx = canvas.getContext('2d');
@@ -303,12 +306,11 @@
                 const scaleX = canvas.width / preview.naturalWidth;
                 const scaleY = canvas.height / preview.naturalHeight;
 
-                ctx.fillStyle = '#ff0000'; // Red dots for landmarks
+                ctx.fillStyle = '#ff0000';
                 
-                // Draw each point from the face mesh
                 this.faceMesh.forEach(point => {
-                    const x = point[0] * scaleX;
-                    const y = point[1] * scaleY;
+                    const x = point.x * scaleX;
+                    const y = point.y * scaleY;
                     ctx.beginPath();
                     ctx.arc(x, y, 1.2, 0, 2 * Math.PI);
                     ctx.fill();
@@ -321,11 +323,8 @@
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
             
-            // The rest of the functions (generateAvatar, 3D logic, reset) remain the same for now
-            // They will be triggered correctly but won't use the new mesh data yet.
-            // This will be our task in Step 2.
             async generateAvatar() {
-                if (!this.faceMesh) return; // Check for faceMesh now
+                if (!this.faceMesh) return;
                 const loading = document.getElementById('avatarLoading');
                 loading.classList.add('show');
                 document.getElementById('generateAvatarBtn').disabled = true;
@@ -358,18 +357,13 @@
             }
 
             async createAIAvatar() {
-                // NOTE: This function still uses basic shapes.
-                // We will upgrade this in Step 2.
                 await new Promise(resolve => setTimeout(resolve, 1500));
-                
                 const avatarGroup = new THREE.Group();
                 this.avatar = avatarGroup;
-
                 const headGeometry = new THREE.SphereGeometry(1, 32, 32);
                 const headMaterial = new THREE.MeshPhongMaterial({ color: 0xfdbcb4, shininess: 10 });
                 const head = new THREE.Mesh(headGeometry, headMaterial);
                 avatarGroup.add(head);
-
                 const eyeGeometry = new THREE.SphereGeometry(0.12, 16, 16);
                 const eyeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
                 const leftEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
@@ -378,7 +372,6 @@
                 const rightEyeMesh = new THREE.Mesh(eyeGeometry, eyeMaterial);
                 rightEyeMesh.position.set(0.3, 0.15, 0.8);
                 avatarGroup.add(rightEyeMesh);
-                
                 this.scene.add(avatarGroup);
                 this.animate();
             }
@@ -401,12 +394,15 @@
             exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
             resetApp() {
                 this.uploadedImage = null; this.faceMesh = null; this.isRotating = false; this.isMorphing = false;
+                this.tfDetector = null; // Also clear the detector
                 document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
                 const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
                 document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
                 document.getElementById('avatarViewer').innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div>`;
                 this.renderer = null; this.scene = null; this.camera = null; this.avatar = null;
                 ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => { document.getElementById(id).disabled = true; });
+                // Re-initialize the app state after reset
+                this.initializeApp();
             }
         }
 
