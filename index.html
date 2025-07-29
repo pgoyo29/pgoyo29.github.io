@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 2 (Fixed)</title>
+    <title>AI Face Detection Avatar Generator - Step 2 (Final Fix)</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <!-- FIX: Use a compatible CDN version of the GLTFLoader -->
+    <!-- FIX: We need KTX2Loader for the advanced textures in the model -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    
-    <!-- TensorFlow and MediaPipe scripts remain the same -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/KTX2Loader.js"></script>
+
+    <!-- TensorFlow and MediaPipe scripts remain the same and in the correct order -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
@@ -57,7 +58,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- The HTML structure remains exactly the same -->
+        <!-- HTML structure is correct and requires no changes -->
         <div class="header"><h1>🤖 AI Face Detection Avatar</h1><p>Advanced face analysis for realistic 3D avatar generation</p></div>
         <div class="init-status loading" id="initStatus"><div class="spinner"></div>Loading AI models... Please wait</div>
         <div class="main-content">
@@ -84,24 +85,15 @@
 
     <script>
         class AIFaceDetectionAvatar {
+            // Constructor and initializeApp are correct
             constructor() {
-                this.isModelLoaded = false;
-                this.uploadedImage = null;
-                this.showLandmarks = true;
-                this.tfDetector = null;
-                this.faceMesh = null;
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.avatar = null;
-                this.isRotating = false;
-                this.isMorphing = false;
-                this.clock = new THREE.Clock();
+                this.isModelLoaded = false; this.uploadedImage = null; this.showLandmarks = true;
+                this.tfDetector = null; this.faceMesh = null; this.scene = null;
+                this.camera = null; this.renderer = null; this.avatar = null;
+                this.isRotating = false; this.isMorphing = false; this.clock = new THREE.Clock();
                 this.animationFrameId = null;
-
                 this.initializeApp();
             }
-
             async initializeApp() {
                 try {
                     await this.loadTFModel();
@@ -113,7 +105,6 @@
                     document.getElementById('initStatus').classList.add('error');
                 }
             }
-            
             async loadTFModel() {
                 const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
                 const detectorConfig = {
@@ -124,13 +115,12 @@
                 this.tfDetector = await faceLandmarksDetection.createDetector(model, detectorConfig);
                 this.isModelLoaded = true;
             }
-
+            // All helper methods up to createAIAvatar are correct
             updateInitStatus(message, isLoading) {
                 const status = document.getElementById('initStatus');
                 status.innerHTML = isLoading ? `<div class="spinner"></div>${message}` : message;
                 status.className = isLoading ? 'init-status loading' : 'init-status';
             }
-
             initializeEventListeners() {
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
@@ -154,7 +144,6 @@
                 exportBtn.addEventListener('click', () => this.exportAvatar());
                 resetBtn.addEventListener('click', () => this.resetApp());
             }
-
             handleFileUpload(event) { const file = event.target.files[0]; if (file) this.processFile(file); }
             processFile(file) {
                 if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
@@ -238,7 +227,6 @@
                 this.drawFaceDetection();
                 document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
-            
             async generateAvatar() {
                 if (!this.faceMesh) return;
                 const loading = document.getElementById('avatarLoading');
@@ -252,10 +240,10 @@
                 } catch (error) { 
                     console.error('Avatar generation error:', error); 
                     alert('Error generating avatar.'); 
-                } 
-                finally { loading.classList.remove('show'); }
+                } finally { loading.classList.remove('show'); }
             }
 
+            // init3DScene is now slightly simpler as KTX2 setup handles the renderer
             init3DScene() {
                 const container = document.getElementById('avatarViewer');
                 container.innerHTML = '';
@@ -274,33 +262,33 @@
                 directionalLight.position.set(1, 1, 5);
                 this.scene.add(directionalLight);
             }
-
+            
+            // FIX: This function now correctly sets up the required loaders
             async createAIAvatar() {
-                // The GLTFLoader constructor is now correctly found on the THREE object
-                const loader = new THREE.GLTFLoader();
                 const modelUrl = 'https://threejs.org/examples/models/gltf/facecap.glb';
+
+                // 1. Set up the KTX2 Loader
+                const ktx2Loader = new THREE.KTX2Loader()
+                    .setTranscoderPath('https://threejs.org/examples/js/libs/basis/')
+                    .detectSupport(this.renderer);
+
+                // 2. Set up the GLTF Loader and give it the KTX2 loader
+                const loader = new THREE.GLTFLoader();
+                loader.setKTX2Loader(ktx2Loader);
 
                 try {
                     const gltf = await loader.loadAsync(modelUrl);
                     
-                    // This specific model has a hierarchy, the mesh we want is nested inside
                     const headModel = gltf.scene.getObjectByName('mesh_2');
+                    if (!headModel) throw new Error("Could not find 'mesh_2' object in model.");
                     
-                    if (!headModel) {
-                        throw new Error("Could not find 'mesh_2' object in the loaded model.");
-                    }
                     this.avatar = headModel;
 
-                    const skinMaterial = new THREE.MeshStandardMaterial({
-                        color: 0xfdbcb4,
-                        roughness: 0.6,
-                        metalness: 0.2
-                    });
-                    this.avatar.material = skinMaterial;
-
-                    // This model is already well-scaled, so we can use a smaller factor
+                    // This model comes with its own materials, so we don't need to create a new one.
+                    // We can just use what's provided.
+                    
                     this.avatar.scale.set(10, 10, 10);
-                    this.avatar.position.set(0, -12, 0); // Adjust Y position
+                    this.avatar.position.set(0, -12, 0);
 
                     this.scene.add(this.avatar);
                     this.animate();
@@ -308,6 +296,9 @@
                 } catch (error) {
                     console.error("Failed to load 3D model:", error);
                     alert("Could not load the 3D head model. Please check the network connection and console.");
+                } finally {
+                    // Clean up the loader to free memory
+                    ktx2Loader.dispose();
                 }
             }
 
@@ -320,22 +311,16 @@
             }
             
             toggleRotation() { this.isRotating = !this.isRotating; document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; }
-            
             toggleMorph() { alert("Feature not implemented yet!"); }
-
             exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
             
+            // Reset logic is correct
             resetApp() {
-                if (this.animationFrameId) {
-                    cancelAnimationFrame(this.animationFrameId);
-                }
-                if (this.tfDetector) {
-                    this.tfDetector.dispose();
-                }
+                if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+                if (this.tfDetector) this.tfDetector.dispose();
                 this.isModelLoaded = false; this.uploadedImage = null; this.showLandmarks = true;
                 this.tfDetector = null; this.faceMesh = null; this.scene = null; this.camera = null;
                 this.renderer = null; this.avatar = null; this.isRotating = false; this.isMorphing = false;
-
                 document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
                 const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
                 document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
