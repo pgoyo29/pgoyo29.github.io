@@ -7,7 +7,6 @@
     
     <!-- Fixed CDN links for consistent versions -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
@@ -80,13 +79,22 @@
     <script>
         class AIFaceDetectionAvatar {
             constructor() {
-                this.isModelLoaded = false; this.uploadedImage = null; this.showLandmarks = true;
-                this.tfDetector = null; this.faceMesh = null; this.scene = null;
-                this.camera = null; this.renderer = null; this.avatar = null;
-                this.isRotating = false; this.isMorphing = false; this.clock = new THREE.Clock();
-                this.animationFrameId = null; this.gltfLoader = null;
+                this.isModelLoaded = false; 
+                this.uploadedImage = null; 
+                this.showLandmarks = true;
+                this.tfDetector = null; 
+                this.faceMesh = null; 
+                this.scene = null;
+                this.camera = null; 
+                this.renderer = null; 
+                this.avatar = null;
+                this.isRotating = false; 
+                this.isMorphing = false; 
+                this.clock = new THREE.Clock();
+                this.animationFrameId = null;
                 this.initializeApp();
             }
+            
             async initializeApp() {
                 try {
                     await this.loadTFModel();
@@ -98,24 +106,41 @@
                     document.getElementById('initStatus').classList.add('error');
                 }
             }
+            
             async loadTFModel() {
                 const model = faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh;
-                const detectorConfig = { runtime: 'mediapipe', solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh', maxFaces: 1 };
+                const detectorConfig = { 
+                    runtime: 'mediapipe', 
+                    solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh', 
+                    maxFaces: 1 
+                };
                 this.tfDetector = await faceLandmarksDetection.createDetector(model, detectorConfig);
                 this.isModelLoaded = true;
             }
+            
             updateInitStatus(message, isLoading) {
                 const status = document.getElementById('initStatus');
                 status.innerHTML = isLoading ? `<div class="spinner"></div>${message}` : message;
                 status.className = isLoading ? 'init-status loading' : 'init-status';
             }
+            
             initializeEventListeners() {
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
+                
                 fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
-                uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+                uploadZone.addEventListener('dragover', (e) => { 
+                    e.preventDefault(); 
+                    uploadZone.classList.add('dragover'); 
+                });
                 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-                uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); const files = e.dataTransfer.files; if (files.length > 0) this.processFile(files[0]); });
+                uploadZone.addEventListener('drop', (e) => { 
+                    e.preventDefault(); 
+                    uploadZone.classList.remove('dragover'); 
+                    const files = e.dataTransfer.files; 
+                    if (files.length > 0) this.processFile(files[0]); 
+                });
+                
                 document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeFace());
                 document.getElementById('toggleLandmarksBtn').addEventListener('click', () => this.toggleLandmarks());
                 document.getElementById('generateAvatarBtn').addEventListener('click', () => this.generateAvatar());
@@ -124,14 +149,31 @@
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportAvatar());
                 document.getElementById('resetBtn').addEventListener('click', () => this.resetApp());
             }
-            handleFileUpload(event) { const file = event.target.files[0]; if (file) this.processFile(file); }
+            
+            handleFileUpload(event) { 
+                const file = event.target.files[0]; 
+                if (file) this.processFile(file); 
+            }
+            
             processFile(file) {
-                if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
-                if (file.size > 10 * 1024 * 1024) { alert('File size must be less than 10MB'); return; }
+                if (!file.type.startsWith('image/')) { 
+                    alert('Please upload an image file'); 
+                    return; 
+                }
+                if (file.size > 10 * 1024 * 1024) { 
+                    alert('File size must be less than 10MB'); 
+                    return; 
+                }
+                
                 const reader = new FileReader();
-                reader.onload = (e) => { this.uploadedImage = e.target.result; this.showPhotoPreview(e.target.result); document.getElementById('analyzeBtn').disabled = false; };
+                reader.onload = (e) => { 
+                    this.uploadedImage = e.target.result; 
+                    this.showPhotoPreview(e.target.result); 
+                    document.getElementById('analyzeBtn').disabled = false; 
+                };
                 reader.readAsDataURL(file);
             }
+            
             showPhotoPreview(imageSrc) {
                 const container = document.getElementById('photoContainer');
                 const preview = document.getElementById('photoPreview');
@@ -139,28 +181,36 @@
                 container.style.display = 'block';
                 preview.onload = () => this.setupDetectionCanvas();
             }
+            
             setupDetectionCanvas() {
                 const preview = document.getElementById('photoPreview');
                 const canvas = document.getElementById('detectionCanvas');
-                canvas.width = preview.clientWidth; canvas.height = preview.clientHeight;
+                canvas.width = preview.clientWidth; 
+                canvas.height = preview.clientHeight;
             }
+            
             async analyzeFace() {
                 if (!this.isModelLoaded || !this.uploadedImage) return;
+                
                 const loading = document.getElementById('analysisLoading');
                 loading.classList.add('show');
                 document.getElementById('analyzeBtn').disabled = true;
+                
                 try {
                     const preview = document.getElementById('photoPreview');
                     const predictions = await this.tfDetector.estimateFaces(preview);
+                    
                     if (predictions.length === 0) {
                         alert('No face detected. Try a clearer front-facing photo.');
                         document.getElementById('analyzeBtn').disabled = false;
                         loading.classList.remove('show');
                         return;
                     }
+                    
                     this.faceMesh = predictions[0].keypoints;
                     this.displayAnalysisResults(predictions[0]);
                     this.drawFaceDetection();
+                    
                     document.getElementById('toggleLandmarksBtn').disabled = false;
                     document.getElementById('generateAvatarBtn').disabled = false;
                 } catch (error) {
@@ -170,24 +220,37 @@
                     loading.classList.remove('show');
                 }
             }
+            
             displayAnalysisResults(prediction) {
                 const resultsDiv = document.getElementById('analysisResults');
                 const featuresList = document.getElementById('featuresList');
+                
                 if (!this.faceMesh) return;
+                
                 const box = prediction.box;
                 const faceWidth = Math.round(box.width);
                 const faceHeight = Math.round(box.height);
-                featuresList.innerHTML = `<div class="analysis-item"><span>Face Dimensions (Approx):</span><span>${faceWidth} × ${faceHeight} px</span></div><div class="analysis-item"><span>3D Keypoints Detected:</span><span>${this.faceMesh.length} points</span></div>`;
+                
+                featuresList.innerHTML = `
+                    <div class="analysis-item"><span>Face Dimensions (Approx):</span><span>${faceWidth} × ${faceHeight} px</span></div>
+                    <div class="analysis-item"><span>3D Keypoints Detected:</span><span>${this.faceMesh.length} points</span></div>
+                `;
+                
                 resultsDiv.style.display = 'block';
             }
+            
             drawFaceDetection() {
                 const canvas = document.getElementById('detectionCanvas');
                 const ctx = canvas.getContext('2d');
                 const preview = document.getElementById('photoPreview');
+                
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
                 if (!this.faceMesh || !this.showLandmarks) return;
+                
                 const scaleX = canvas.width / preview.naturalWidth;
                 const scaleY = canvas.height / preview.naturalHeight;
+                
                 ctx.fillStyle = '#ff0000';
                 this.faceMesh.forEach(point => {
                     const x = point.x * scaleX;
@@ -197,49 +260,62 @@
                     ctx.fill();
                 });
             }
+            
             toggleLandmarks() {
                 this.showLandmarks = !this.showLandmarks;
                 this.drawFaceDetection();
-                document.getElementById('toggleLandmarksBtn').textContent = this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
+                document.getElementById('toggleLandmarksBtn').textContent = 
+                    this.showLandmarks ? 'Hide Landmarks' : 'Show Landmarks';
             }
+            
             async generateAvatar() {
                 if (!this.faceMesh) return;
+                
                 const loading = document.getElementById('avatarLoading');
                 loading.classList.add('show');
                 document.getElementById('generateAvatarBtn').disabled = true;
+                
                 try {
                     this.init3DScene();
                     await this.createAIAvatar();
+                    
                     document.getElementById('rotateBtn').disabled = false;
                     document.getElementById('exportBtn').disabled = false;
                 } catch (error) { 
                     console.error('Avatar generation error:', error); 
                     alert('Error generating avatar. Check console for details.'); 
-                } finally { loading.classList.remove('show'); }
+                } finally { 
+                    loading.classList.remove('show'); 
+                }
             }
+            
             init3DScene() {
                 const container = document.getElementById('avatarViewer');
                 container.innerHTML = '';
+                
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x2a2a2a);
+                
                 this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
                 this.camera.position.set(0, 0, 25);
+                
                 this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
                 this.renderer.setSize(container.clientWidth, container.clientHeight);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.renderer.outputEncoding = THREE.sRGBEncoding;
                 container.appendChild(this.renderer.domElement);
+                
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
                 this.scene.add(ambientLight);
+                
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
                 directionalLight.position.set(1, 1, 5);
                 this.scene.add(directionalLight);
-                this.gltfLoader = new THREE.GLTFLoader();
             }
+            
             async createAIAvatar() {
-                // Instead of loading a GLTF model, create a procedural avatar
                 try {
-                    // Create a basic head geometry from facial landmarks
+                    // Create a procedural avatar from facial landmarks
                     const headGeometry = this.createHeadFromLandmarks();
                     const headMaterial = new THREE.MeshLambertMaterial({ 
                         color: 0xffdbac, // Skin tone
@@ -263,6 +339,10 @@
                     
                     this.scene.add(this.avatar);
                     this.scene.add(wireframe);
+                    
+                    // Add some facial features
+                    this.addFacialFeatures();
+                    
                     this.animate();
 
                 } catch (error) {
@@ -303,6 +383,44 @@
                 return geometry;
             }
 
+            addFacialFeatures() {
+                // Add eyes
+                const eyeGeometry = new THREE.SphereGeometry(1, 16, 16);
+                const eyeMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+                
+                const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                leftEye.position.set(-1.2, 0.8, 1.3);
+                leftEye.scale.set(0.15, 0.15, 0.15);
+                
+                const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+                rightEye.position.set(1.2, 0.8, 1.3);
+                rightEye.scale.set(0.15, 0.15, 0.15);
+                
+                this.scene.add(leftEye);
+                this.scene.add(rightEye);
+                
+                // Add nose (simple cylinder)
+                const noseGeometry = new THREE.CylinderGeometry(0.3, 0.5, 1.5, 8);
+                const noseMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+                
+                const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+                nose.position.set(0, -0.2, 1.2);
+                nose.scale.set(0.15, 0.15, 0.15);
+                
+                this.scene.add(nose);
+                
+                // Add mouth
+                const mouthGeometry = new THREE.TorusGeometry(0.8, 0.2, 8, 16, Math.PI);
+                const mouthMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                
+                const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+                mouth.position.set(0, -1.5, 1);
+                mouth.rotation.x = Math.PI;
+                mouth.scale.set(0.15, 0.15, 0.15);
+                
+                this.scene.add(mouth);
+            }
+
             getFaceBounds() {
                 let minX = Infinity, maxX = -Infinity;
                 let minY = Infinity, maxY = -Infinity;
@@ -331,28 +449,68 @@
 
             animate() {
                 this.animationFrameId = requestAnimationFrame(() => this.animate());
+                
                 if (this.avatar && this.isRotating) {
                     this.avatar.rotation.y += this.clock.getDelta() * 0.5;
                 }
+                
                 if (this.renderer) this.renderer.render(this.scene, this.camera);
             }
             
-            toggleRotation() { this.isRotating = !this.isRotating; document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; }
-            toggleMorph() { alert("Feature not implemented yet!"); }
-            exportAvatar() { if (!this.renderer) return; const link = document.createElement('a'); link.download = 'ai_avatar.png'; link.href = this.renderer.domElement.toDataURL('image/png'); link.click(); }
+            toggleRotation() { 
+                this.isRotating = !this.isRotating; 
+                document.getElementById('rotateBtn').textContent = this.isRotating ? 'Stop Rotate' : 'Auto Rotate'; 
+            }
+            
+            toggleMorph() { 
+                alert("Feature coming soon! This will allow morphing facial features based on the detected landmarks."); 
+            }
+            
+            exportAvatar() { 
+                if (!this.renderer) return; 
+                const link = document.createElement('a'); 
+                link.download = 'ai_avatar.png'; 
+                link.href = this.renderer.domElement.toDataURL('image/png'); 
+                link.click(); 
+            }
             
             resetApp() {
                 if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
                 if (this.tfDetector) this.tfDetector.dispose();
-                this.isModelLoaded = false; this.uploadedImage = null; this.showLandmarks = true;
-                this.tfDetector = null; this.faceMesh = null; this.scene = null; this.camera = null;
-                this.renderer = null; this.avatar = null; this.isRotating = false; this.isMorphing = false;
-                this.gltfLoader = null;
-                document.getElementById('photoContainer').style.display = 'none'; document.getElementById('photoPreview').src = ''; document.getElementById('fileInput').value = '';
-                const detectionCanvas = document.getElementById('detectionCanvas'); detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
-                document.getElementById('analysisResults').style.display = 'none'; document.getElementById('featuresList').innerHTML = '';
-                document.getElementById('avatarViewer').innerHTML = `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;"><div style="font-size: 3em; margin-bottom: 15px;">🎭</div><div>AI-generated avatar will appear here</div></div>`;
-                ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => { document.getElementById(id).disabled = true; });
+                
+                this.isModelLoaded = false; 
+                this.uploadedImage = null; 
+                this.showLandmarks = true;
+                this.tfDetector = null; 
+                this.faceMesh = null; 
+                this.scene = null; 
+                this.camera = null;
+                this.renderer = null; 
+                this.avatar = null; 
+                this.isRotating = false; 
+                this.isMorphing = false;
+                
+                document.getElementById('photoContainer').style.display = 'none'; 
+                document.getElementById('photoPreview').src = ''; 
+                document.getElementById('fileInput').value = '';
+                
+                const detectionCanvas = document.getElementById('detectionCanvas'); 
+                detectionCanvas.getContext('2d').clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
+                
+                document.getElementById('analysisResults').style.display = 'none'; 
+                document.getElementById('featuresList').innerHTML = '';
+                
+                document.getElementById('avatarViewer').innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; flex-direction: column;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">🎭</div>
+                        <div>AI-generated avatar will appear here</div>
+                    </div>
+                `;
+                
+                ['analyzeBtn', 'toggleLandmarksBtn', 'generateAvatarBtn', 'rotateBtn', 'morphBtn', 'exportBtn'].forEach(id => { 
+                    document.getElementById(id).disabled = true; 
+                });
+                
                 this.updateInitStatus('Loading AI models...', true);
                 this.initializeApp();
             }
