@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Face Detection Avatar Generator - Step 2 (Local Asset)</title>
+    <title>AI Face Detection Avatar Generator - Fixed</title>
     
-    <!-- All scripts are correct and in the correct order -->
+    <!-- Fixed CDN links for consistent versions -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/KTX2Loader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.10.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js"></script>
@@ -16,7 +15,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
 
     <style>
-        /* CSS remains the same */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
         .container { background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); padding: 30px; max-width: 1400px; margin: 0 auto; backdrop-filter: blur(10px); }
@@ -55,7 +53,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- HTML structure is correct -->
         <div class="header"><h1>🤖 AI Face Detection Avatar</h1><p>Advanced face analysis for realistic 3D avatar generation</p></div>
         <div class="init-status loading" id="initStatus"><div class="spinner"></div>Loading AI models... Please wait</div>
         <div class="main-content">
@@ -115,24 +112,17 @@
             initializeEventListeners() {
                 const fileInput = document.getElementById('fileInput');
                 const uploadZone = document.getElementById('uploadZone');
-                const analyzeBtn = document.getElementById('analyzeBtn');
-                const toggleLandmarksBtn = document.getElementById('toggleLandmarksBtn');
-                const generateAvatarBtn = document.getElementById('generateAvatarBtn');
-                const rotateBtn = document.getElementById('rotateBtn');
-                const morphBtn = document.getElementById('morphBtn');
-                const exportBtn = document.getElementById('exportBtn');
-                const resetBtn = document.getElementById('resetBtn');
                 fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
                 uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
                 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
                 uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); const files = e.dataTransfer.files; if (files.length > 0) this.processFile(files[0]); });
-                analyzeBtn.addEventListener('click', () => this.analyzeFace());
-                toggleLandmarksBtn.addEventListener('click', () => this.toggleLandmarks());
-                generateAvatarBtn.addEventListener('click', () => this.generateAvatar());
-                rotateBtn.addEventListener('click', () => this.toggleRotation());
-                morphBtn.addEventListener('click', () => this.toggleMorph());
-                exportBtn.addEventListener('click', () => this.exportAvatar());
-                resetBtn.addEventListener('click', () => this.resetApp());
+                document.getElementById('analyzeBtn').addEventListener('click', () => this.analyzeFace());
+                document.getElementById('toggleLandmarksBtn').addEventListener('click', () => this.toggleLandmarks());
+                document.getElementById('generateAvatarBtn').addEventListener('click', () => this.generateAvatar());
+                document.getElementById('rotateBtn').addEventListener('click', () => this.toggleRotation());
+                document.getElementById('morphBtn').addEventListener('click', () => this.toggleMorph());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportAvatar());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetApp());
             }
             handleFileUpload(event) { const file = event.target.files[0]; if (file) this.processFile(file); }
             processFile(file) {
@@ -244,41 +234,99 @@
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
                 directionalLight.position.set(1, 1, 5);
                 this.scene.add(directionalLight);
-                const ktx2Loader = new THREE.KTX2Loader()
-                    .setTranscoderPath('https://threejs.org/examples/js/libs/basis/')
-                    .detectSupport(this.renderer);
                 this.gltfLoader = new THREE.GLTFLoader();
-                this.gltfLoader.setKTX2Loader(ktx2Loader);
             }
             async createAIAvatar() {
-                // *** THE ONLY CHANGE IS HERE ***
-                const modelUrl = './assets/facecap.glb'; // Use the local path
-
+                // Instead of loading a GLTF model, create a procedural avatar
                 try {
-                    const gltf = await this.gltfLoader.loadAsync(modelUrl);
-                    
-                    let headModel = null;
-                    gltf.scene.traverse(function (object) {
-                        if (object.isMesh && !headModel) {
-                            headModel = object;
-                        }
+                    // Create a basic head geometry from facial landmarks
+                    const headGeometry = this.createHeadFromLandmarks();
+                    const headMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0xffdbac, // Skin tone
+                        transparent: true,
+                        opacity: 0.9
                     });
-
-                    if (!headModel) {
-                        throw new Error("Could not find any mesh inside the loaded GLTF model.");
-                    }
                     
-                    this.avatar = headModel;
-                    this.avatar.scale.set(10, 10, 10);
-                    this.avatar.position.set(0, -12, 0);
-
+                    this.avatar = new THREE.Mesh(headGeometry, headMaterial);
+                    this.avatar.scale.set(0.15, 0.15, 0.15);
+                    this.avatar.position.set(0, 0, 0);
+                    
+                    // Add wireframe overlay for detail
+                    const wireframeMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0x333333, 
+                        wireframe: true,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const wireframe = new THREE.Mesh(headGeometry, wireframeMaterial);
+                    wireframe.scale.set(0.15, 0.15, 0.15);
+                    
                     this.scene.add(this.avatar);
+                    this.scene.add(wireframe);
                     this.animate();
 
                 } catch (error) {
-                    console.error("Failed to load or process 3D model:", error);
-                    alert("Could not load the 3D head model. Make sure it's in the 'assets' folder.");
+                    console.error("Failed to create procedural avatar:", error);
+                    // Fallback to simple sphere
+                    this.createFallbackAvatar();
                 }
+            }
+
+            createHeadFromLandmarks() {
+                // Create a sphere as base and modify it based on face mesh
+                const geometry = new THREE.SphereGeometry(10, 32, 32);
+                const positions = geometry.attributes.position;
+                
+                if (this.faceMesh && this.faceMesh.length > 0) {
+                    // Get face bounds for scaling
+                    const bounds = this.getFaceBounds();
+                    const faceWidth = bounds.maxX - bounds.minX;
+                    const faceHeight = bounds.maxY - bounds.minY;
+                    
+                    // Slightly deform the sphere based on face proportions
+                    for (let i = 0; i < positions.count; i++) {
+                        const x = positions.getX(i);
+                        const y = positions.getY(i);
+                        const z = positions.getZ(i);
+                        
+                        // Apply subtle deformations based on face dimensions
+                        const widthFactor = Math.min(1.2, faceWidth / 200);
+                        const heightFactor = Math.min(1.2, faceHeight / 250);
+                        
+                        positions.setX(i, x * widthFactor);
+                        positions.setY(i, y * heightFactor);
+                    }
+                    
+                    positions.needsUpdate = true;
+                }
+                
+                return geometry;
+            }
+
+            getFaceBounds() {
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                
+                this.faceMesh.forEach(point => {
+                    minX = Math.min(minX, point.x);
+                    maxX = Math.max(maxX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxY = Math.max(maxY, point.y);
+                });
+                
+                return { minX, maxX, minY, maxY };
+            }
+
+            createFallbackAvatar() {
+                // Simple fallback avatar
+                const geometry = new THREE.SphereGeometry(8, 32, 32);
+                const material = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+                
+                this.avatar = new THREE.Mesh(geometry, material);
+                this.avatar.position.set(0, 0, 0);
+                
+                this.scene.add(this.avatar);
+                this.animate();
             }
 
             animate() {
